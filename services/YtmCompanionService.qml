@@ -191,16 +191,17 @@ QtObject {
     // /state is rate-limited to 1/5s and returns an invalid-JSON stub when
     // throttled, so retry every 5.5s until a track lands (max 6 tries).
     property int _seedTries: 0
-    property Process _seedProc: Process {
-        stdout: StdioCollector { onStreamFinished: root._onSeed(text) }
-    }
     property Timer _seedTimer: Timer { interval: 5500; onTriggered: root._seed() }
     function _seed() {
         if (_token === "") return
-        _seedProc.command = ["curl", "-s", "-m", "3", _base + "/state",
-                             "-H", "Authorization: " + _token]
-        _seedProc.running = false
-        _seedProc.running = true
+        const xhr = new XMLHttpRequest()
+        xhr.timeout = 3000
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === XMLHttpRequest.DONE) root._onSeed(xhr.responseText)
+        }
+        xhr.open("GET", _base + "/state")
+        xhr.setRequestHeader("Authorization", _token)
+        xhr.send()
     }
     function _onSeed(txt) {
         let ok = false
@@ -209,16 +210,16 @@ QtObject {
     }
 
     // ── Commands ────────────────────────────────────────────────────────────--
-    property Process _cmd: Process {}
     function _send(command, data) {
         if (_token === "") return
         const body = data !== undefined ? JSON.stringify({ command: command, data: data })
                                         : JSON.stringify({ command: command })
-        _cmd.command = ["curl", "-s", "-m", "3", "-X", "POST", _base + "/command",
-                        "-H", "Authorization: " + _token,
-                        "-H", "Content-Type: application/json",
-                        "-d", body]
-        _cmd.running = true
+        const xhr = new XMLHttpRequest()
+        xhr.timeout = 3000
+        xhr.open("POST", _base + "/command")
+        xhr.setRequestHeader("Authorization", _token)
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.send(body)
     }
 
     function playPause() { _send("playPause"); playing = !playing; _anchorSec = positionMs / 1000; _anchorTime = Date.now() }

@@ -1,11 +1,10 @@
 pragma Singleton
 import QtQuick
-import Quickshell.Io
 import "."
 
 // Weather via wttr.in (no API key). French (lang=fr).
-// Refreshes on load + every (configurable) interval. Degrades gracefully
-// (ok=false) if curl is missing or the request fails.
+// Refreshes on load + every (configurable) interval via QML XMLHttpRequest (no
+// curl). Degrades gracefully (ok=false) on any network/parse failure.
 QtObject {
     id: root
 
@@ -30,15 +29,16 @@ QtObject {
     // 3-day forecast: [{ day, min, max, icon }]
     property var forecast: []
 
-    function refresh() { _proc.running = true }
-
-    property Process _proc: Process {
-        command: ["sh", "-c",
-            "curl -s --max-time 8 'https://wttr.in/" + encodeURIComponent(root.place) + "?format=j1&lang=fr'"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: root._parse(text)
+    function refresh() {
+        const url = "https://wttr.in/" + encodeURIComponent(root.place) + "?format=j1&lang=fr"
+        const xhr = new XMLHttpRequest()
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState !== XMLHttpRequest.DONE) return
+            if (xhr.status === 200) root._parse(xhr.responseText)
+            else root.ok = false
         }
+        xhr.open("GET", url)
+        xhr.send()
     }
 
     // Map wttr weather codes → nerd-font glyphs (coarse buckets)

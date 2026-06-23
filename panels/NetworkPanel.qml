@@ -26,17 +26,23 @@ Item {
     property var  vpnList:      []   // [{ name, active }]
     property bool scanning:     false
 
+    property bool _freshArrived: false   // fresh rescan applied this cycle
+
     function _rescan() {
-        _wifiState.running = true
-        _wifiScan.running  = true   // instant cached list (--rescan no)
-        _wifiRescan.running = true  // background radio rescan, refreshes when done
-        _vpnScan.running   = true
+        _freshArrived = false
         scanning = true
+        _wifiState.running  = true
+        _wifiScan.running   = true   // instant cached list (--rescan no)
+        _wifiRescan.running = true   // background radio rescan, refreshes when done
+        _vpnScan.running    = true
     }
 
     // Shared parser for both the cached and rescanned `nmcli ... wifi list`.
-    // Merge by SSID across BSSIDs: keep max signal, OR the in-use flag.
-    function _parseWifi(text) {
+    // Merge by SSID across BSSIDs: keep max signal, OR the in-use flag. The
+    // cached list paints first but may be stale; only the fresh rescan clears
+    // the refreshing state, and a late cached result never clobbers it.
+    function _parseWifi(text, fresh) {
+        if (!fresh && root._freshArrived) return
         const byId = {}
         for (const ln of text.trim().split("\n")) {
             if (!ln) continue
@@ -55,7 +61,7 @@ Item {
         const rows = Object.keys(byId).map(k => byId[k])
         rows.sort((a, b) => (b.active - a.active) || (b.signal - a.signal))
         root.wifiNetworks = rows
-        root.scanning = false
+        if (fresh) { root._freshArrived = true; root.scanning = false }
     }
 
     // Run an nmcli action then re-scan shortly after.
@@ -79,13 +85,13 @@ Item {
     property Process _wifiScan: Process {
         command: ["sh", "-c", "nmcli -t -f IN-USE,SIGNAL,SSID device wifi list --rescan no 2>/dev/null"]
         running: false
-        stdout: StdioCollector { onStreamFinished: root._parseWifi(text) }
+        stdout: StdioCollector { onStreamFinished: root._parseWifi(text, false) }
     }
     // Fresh radio rescan — slower, refreshes the list once it completes.
     property Process _wifiRescan: Process {
         command: ["sh", "-c", "nmcli -t -f IN-USE,SIGNAL,SSID device wifi list --rescan yes 2>/dev/null"]
         running: false
-        stdout: StdioCollector { onStreamFinished: root._parseWifi(text) }
+        stdout: StdioCollector { onStreamFinished: root._parseWifi(text, true) }
     }
     property Process _vpnScan: Process {
         command: ["sh", "-c", "nmcli -t -f NAME,TYPE,STATE connection show 2>/dev/null"]
@@ -140,9 +146,11 @@ Item {
                 opacity: 0.6
                 Layout.topMargin: 4
             }
+            // Refreshing cue — the cached list paints first and may be stale, so
+            // flag it until the fresh radio scan lands.
             Text {
-                visible: root.wifiEnabled && root.scanning && root.wifiNetworks.length === 0
-                text: "Scanning…"
+                visible: root.wifiEnabled && root.scanning
+                text: root.wifiNetworks.length === 0 ? "Scanning…" : "Refreshing…"
                 color: ThemeManager.onSurfaceVariant
                 font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
                 opacity: 0.6
@@ -153,6 +161,9 @@ Item {
                 delegate: MenuRow {
                     required property var modelData
                     text: modelData.ssid
+                    // Dim while a fresh scan is pending — the cached values
+                    // (signal, presence) may not be current yet.
+                    opacity: root.scanning ? 0.5 : 1
                     icon: {
                         const s = modelData.signal
                         if (s >= 80) return "󰤨"

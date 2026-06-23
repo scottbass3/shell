@@ -1,15 +1,5 @@
-# ── Personal runtime state (never publish) ───────────────────────────────────
-/settings.json
-/hypr/binds.generated.lua
-/theme/active.json
-/launcher/usage.json
-/launcher/pinned.json
-/theme/custom/*
-!/theme/custom/.gitkeep
-/theme/exports/*
-!/theme/exports/.gitkeep
-/theme/generated/*
-!/theme/generated/.gitkeep
+# User state lives outside the checkout, in ~/.local/state/quickshell —
+# nothing under it is tracked here. Only build artifacts and noise below.
 
 # ── Build artifacts (rebuilt by install.sh) ──────────────────────────────────
 /Caelestia/

@@ -21,7 +21,7 @@ QtObject {
         { key: "scratchpad", label: "Scratchpad toggle", cmd: Paths.script("special-toggle.sh") }
     ]
 
-    readonly property string _file: Paths.configDir + "/hypr/binds.generated.lua"
+    readonly property string _file: Paths.state("binds.generated.lua")
 
     function combo(k) { return SettingsService.get("binds." + k, "") }
     function setCombo(k, v) {

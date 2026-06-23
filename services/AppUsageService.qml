@@ -1,16 +1,16 @@
 pragma Singleton
 import QtQuick
 import Quickshell.Io
+import "."
 
 // App launch history → frecency scoring (frequency + recency).
-// Persists per-app launch timestamps to ~/.config/quickshell/launcher/usage.json
+// Persists per-app launch timestamps to ~/.local/state/quickshell/usage.json
 //   { "<app-id>": [epochMs, epochMs, ...], ... }
 // score(key) = Σ weight(age) over stored launches; recent + frequent ranks high.
 QtObject {
     id: root
 
-    readonly property string _path:
-        Qt.resolvedUrl("../launcher/usage.json").toString().replace(/^file:\/\//, "")
+    readonly property string _path: Paths.state("usage.json")
 
     // { id: [ts, ...] } — kept in a plain JS object, reassigned to notify bindings.
     property var history: ({})

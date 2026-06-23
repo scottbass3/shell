@@ -44,7 +44,8 @@ end)
 -- configured in-app under Settings → Keybindings and written to
 -- hypr/binds.generated.lua. They are UNBOUND by default — until you set them,
 -- reach Settings via the bar launcher button or the dashboard gear icon.
-local genBinds = home .. "/.config/quickshell/hypr/binds.generated.lua"
+local state = (os.getenv("XDG_STATE_HOME") or (home .. "/.local/state")) .. "/quickshell"
+local genBinds = state .. "/binds.generated.lua"
 if io.open(genBinds) then loadfile(genBinds)() end
 
 -- Per-monitor workspaces (optional): Super+N switches to workspace N on the

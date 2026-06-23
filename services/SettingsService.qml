@@ -1,9 +1,10 @@
 pragma Singleton
 import QtQuick
 import Quickshell.Io
+import "."
 
 // Central, forward-compatible config for the shell. Persists to
-// ~/.config/quickshell/settings.json. Components read values with
+// ~/.local/state/quickshell/settings.json. Components read values with
 //   SettingsService.get("bar.clock.use24h", true)
 // and write with SettingsService.set(path, value) — both dotted paths. Reads
 // depend on `rev` so bindings update live; unknown keys return the caller's
@@ -11,9 +12,8 @@ import Quickshell.Io
 QtObject {
     id: root
 
-    // Config root (this file lives in services/, so go up one).
-    readonly property string _path:
-        Qt.resolvedUrl("../settings.json").toString().replace(/^file:\/\//, "")
+    // Mutable state lives in user space, not the checkout.
+    readonly property string _path: Paths.state("settings.json")
 
     property var _data: ({})
     property int rev: 0          // bump → re-eval get() bindings

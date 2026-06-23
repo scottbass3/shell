@@ -115,13 +115,15 @@ QtObject {
         onError              = _role("onError",              "#601410")
     }
 
-    readonly property string _customDir: Qt.resolvedUrl("custom").toString().replace(/^file:\/\//, "")
+    // Custom themes + wallpaper-generated theme live in user state; presets ship
+    // read-only in the checkout.
+    readonly property string _customDir: Paths.stateDir + "/custom"
     function _isUser(id) { return ("" + id).indexOf("user:") === 0 }
     function _slugOf(id) { return ("" + id).slice(5) }
 
     function _themeFilePath(id) {
         const base = Qt.resolvedUrl(".").toString().replace(/^file:\/\//, "")
-        if (id === "wallpaper") return base + "generated/wallpaper.json"
+        if (id === "wallpaper") return Paths.stateDir + "/generated/wallpaper.json"
         if (_isUser(id))        return _customDir + "/" + _slugOf(id) + ".json"
         return base + "presets/" + id + ".json"
     }
@@ -251,7 +253,7 @@ QtObject {
         activeId = id
         _writeActive.command = [
             "sh", "-c",
-            "printf '%s' '{\"theme\":\"" + id + "\"}' > " + Qt.resolvedUrl("active.json").toString().replace(/^file:\/\//, "")
+            "mkdir -p '" + Paths.stateDir.replace(/'/g, "'\\''") + "' && printf '%s' '{\"theme\":\"" + id + "\"}' > '" + Paths.state("active.json").replace(/'/g, "'\\''") + "'"
         ]
         _writeActive.running = true
         const p = _themeFilePath(id)
@@ -267,19 +269,19 @@ QtObject {
         // Pick light/dark mode from the wallpaper's mean luminance (matugen
         // itself always defaults to dark).
         _matugen.command = ["sh", "-c",
-            'WP="$1"; CFG="$2"; ' +
+            'WP="$1"; CFG="$2"; GEN="$3"; mkdir -p "$GEN"; ' +
             'L=$(magick "$WP" -resize 1x1\\! -colorspace Gray -format "%[fx:mean]" info: 2>/tmp/matugen-mode.err); ' +
             'MODE=dark; ' +
             '[ -n "$L" ] && awk -v l="$L" "BEGIN{exit !(l>0.55)}" && MODE=light; ' +
             'echo "L=$L MODE=$MODE WP=$WP" > /tmp/matugen-mode.log; ' +
             'matugen -c "$CFG" --mode "$MODE" image --source-color-index 0 "$WP"',
-            "sh", wallpaperPath, cfgPath]
+            "sh", wallpaperPath, cfgPath, Paths.stateDir + "/generated"]
         _matugen.running = true
     }
 
     // ── File watchers ─────────────────────────────────────────────────────────
     property FileView _activeView: FileView {
-        path:         Qt.resolvedUrl("active.json").toString().replace(/^file:\/\//, "")
+        path:         Paths.state("active.json")
         watchChanges: true
         blockLoading: true
         onLoaded: {

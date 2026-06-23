@@ -128,8 +128,12 @@ resolves) and execs `quickshell`.
 Everything is configured live in-app — press **`SUPER + I`**. Appearance mode
 (frame / top-bar / floating islands), theme designer (create / duplicate /
 export / import), bar widgets, tray (per-app hide + special workspace + custom
-non-SNI entries), tools, and weather. Settings persist to `settings.json`
-(gitignored — your state stays local).
+non-SNI entries), tools, and weather.
+
+All mutable state — settings, custom themes, pins, app-usage, generated binds —
+lives **outside the checkout** under `~/.local/state/quickshell`
+(`$XDG_STATE_HOME`). The repo stays read-only: pull updates without touching
+your config.
 
 ## License
 

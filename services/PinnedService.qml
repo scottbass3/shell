@@ -4,14 +4,13 @@ import Quickshell.Io
 import "." as Svc
 
 // Pinned apps for the launcher. Ordered list of app keys (DesktopEntry ids),
-// persisted to ~/.config/quickshell/launcher/pinned.json as { "pinned": [...] }.
+// persisted to ~/.local/state/quickshell/pinned.json as { "pinned": [...] }.
 // Seeded with a few common apps on first run so the grid isn't empty before
 // the context menu (9e) lets the user manage pins.
 QtObject {
     id: root
 
-    readonly property string _path:
-        Qt.resolvedUrl("../launcher/pinned.json").toString().replace(/^file:\/\//, "")
+    readonly property string _path: Svc.Paths.state("pinned.json")
 
     property var pinned: []          // array of keys, in display order
     property bool _loaded: false

@@ -322,7 +322,7 @@ PanelWindow {
                         }
                         Text {
                             Layout.fillWidth: true
-                            text: "Exports the active theme's colors to ~/.config/quickshell/theme/exports/"
+                            text: "Exports the active theme's colors to ~/.local/state/quickshell/exports/"
                             wrapMode: Text.WordWrap
                             color: ThemeManager.onSurfaceVariant
                             font.family: ThemeManager.fontFamily; font.pixelSize: 10
@@ -330,7 +330,7 @@ PanelWindow {
                         Process {
                             id: _exportTheme
                             command: ["sh", "-c",
-                                "d=\"" + Qt.resolvedUrl("../theme/exports").toString().replace(/^file:\/\//, "") + "\"; " +
+                                "d=\"" + (Paths.stateDir + "/exports") + "\"; " +
                                 "mkdir -p \"$d\" && printf '%s' '" +
                                 JSON.stringify(ThemeManager.themeData).replace(/'/g, "'\\''") +
                                 "' > \"$d/" + ThemeManager.activeId + ".json\""]

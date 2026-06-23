@@ -63,8 +63,8 @@ else
     warn "npm not found — skipping YT Music bridge (optional)"
 fi
 
-# ── Seed empty settings + make scripts executable ────────────────────────────
-[ -f settings.json ] || printf '{}\n' > settings.json
+# ── User state dir (settings, themes, pins) lives outside the checkout ───────
+mkdir -p "${XDG_STATE_HOME:-$HOME/.local/state}/quickshell"
 chmod +x launch.sh scripts/hypr/*.sh 2>/dev/null || true
 
 # ── Optional runtime dependency report ───────────────────────────────────────

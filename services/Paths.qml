@@ -1,11 +1,13 @@
 pragma Singleton
 import QtQuick
+import Quickshell
 
 // Resolves filesystem paths for the shell. This file lives in services/, so
 // ".." is the config root. Two roots:
 //   configDir — the (read-only) checkout: code, presets, scripts, plugin.
 //   stateDir  — mutable user state, kept OUTSIDE the checkout under XDG state
-//               (~/.local/state/quickshell): settings, themes, pins, usage.
+//               ($XDG_STATE_HOME/quickshell, default ~/.local/state/quickshell):
+//               settings, themes, pins, usage, generated binds.
 QtObject {
     // e.g. "/home/<user>/.config/quickshell"
     readonly property string configDir:
@@ -13,12 +15,15 @@ QtObject {
     readonly property string scriptsDir: configDir + "/scripts/hypr"
     function script(name) { return scriptsDir + "/" + name }
 
-    // ~/.local/state/quickshell — derived from configDir's home so no env
-    // access is needed. Falls back gracefully for non-default XDG_CONFIG_HOME.
+    // $XDG_STATE_HOME/quickshell, else ~/.local/state/quickshell — same logic
+    // as hypr/quickshell.lua and install.sh so all three agree.
     readonly property string stateDir: {
-        let home = configDir.replace(/\/\.config\/quickshell$/, "")
-        if (home === configDir) home = configDir.replace(/\/quickshell$/, "")
-        return home + "/.local/state/quickshell"
+        let base = String(Quickshell.env("XDG_STATE_HOME") || "").trim().replace(/\/+$/, "")
+        if (base === "") {
+            const home = String(Quickshell.env("HOME") || "").replace(/\/+$/, "")
+            base = (home !== "" ? home : configDir.replace(/\/\.config\/quickshell$/, "")) + "/.local/state"
+        }
+        return base + "/quickshell"
     }
     function state(name) { return stateDir + "/" + name }
 }

@@ -17,13 +17,9 @@ QtObject {
         "node":         { bin: "node",         pkg: "nodejs",        desc: "YouTube Music companion bridge" },
         "superfile":    { bin: "spf",          pkg: "superfile",     desc: "File explorer tool" },
         "beacon":       { bin: "beacon",       pkg: "beacon",        desc: "Docker repo explorer" },
-        "jq":           { bin: "jq",           pkg: "jq",            desc: "Workspace / window-move scripts" },
+        "jq":           { bin: "jq",           pkg: "jq",            desc: "Workspace / window helper scripts" },
         "secret-tool":  { bin: "secret-tool",  pkg: "libsecret",     desc: "Keyring (tokens, CalDAV)" },
-        "brightnessctl":{ bin: "brightnessctl",pkg: "brightnessctl", desc: "Brightness control" },
-        "playerctl":    { bin: "playerctl",    pkg: "playerctl",     desc: "MPRIS helpers (optional)" },
-        "hypridle":     { bin: "hypridle",     pkg: "hypridle",      desc: "Idle lock" },
-        "grim":         { bin: "grim",         pkg: "grim",          desc: "Screenshots" },
-        "wl-copy":      { bin: "wl-copy",      pkg: "wl-clipboard",  desc: "Clipboard" }
+        "brightnessctl":{ bin: "brightnessctl",pkg: "brightnessctl", desc: "Brightness control" }
     })
 
     property var present: ({})   // name → bool

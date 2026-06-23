@@ -64,14 +64,16 @@ Dependencies shows what's missing.
 | `matugen` | Wallpaper → Material You theme generation |
 | `cava` | Audio visualizer |
 | `node` + `npm` | YouTube Music companion (realtime track + controls) |
-| `playerctl` | Extra MPRIS controls |
 | `brightnessctl` | Brightness control |
-| `grim`, `slurp`, `wl-copy` | Screenshots / region copy |
-| `wf-recorder` | Screen recording |
-| `hypridle` | Idle → lock |
+| `wf-recorder` + `slurp` | Screen recording |
 | `secret-tool` (libsecret) | Keyring for tokens (e.g. YT Music) |
 | `jq` | Workspace / window helper scripts |
 | `superfile`, `beacon` | File / Docker explorer tools |
+
+Media (play/pause/next, metadata) uses Quickshell's native MPRIS — no
+`playerctl` needed. Screenshots, clipboard and idle-lock are **Hyprland-side**:
+wire your own `hyprland.lua` binds (e.g. `grim`/`slurp`/`wl-copy`) and run an
+idle daemon (e.g. `hypridle` calling `qs ipc call lock lock`) if you want them.
 
 ## Install
 

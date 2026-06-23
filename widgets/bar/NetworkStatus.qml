@@ -12,42 +12,26 @@ Item {
     implicitWidth:  _icon.implicitWidth
     implicitHeight: _icon.implicitHeight
 
-    // Find first wifi device and first connected network
-    property var wifiDevice: null
-    property var connectedNetwork: null
-    property bool isWifi: wifiDevice !== null && connectedNetwork !== null
-    property bool isEthernet: !isWifi && _hasEthernet
+    // Reactive scan: bindings re-evaluate whenever the device list, a network's
+    // `connected`, or its `signalStrength` changes (QML subscribes to every
+    // notifiable property touched while evaluating). The connected wifi network
+    // is a WifiNetwork, which carries `signalStrength` (the device does not).
+    readonly property var _devices: Networking.devices?.values ?? []
 
-    property bool _hasEthernet: false
-
-    // Scan devices to find wifi + ethernet state (logic-only, not in layout)
-    Repeater {
-        model: Networking.devices
-        delegate: Item {
-            required property var modelData
-
-            Component.onCompleted: {
-                if (modelData.type === DeviceType.Wifi && root.wifiDevice === null) {
-                    root.wifiDevice = modelData
-                }
-                if (modelData.type === DeviceType.Ethernet && modelData.connected) {
-                    root._hasEthernet = true
-                }
-            }
+    readonly property var connectedWifi: {
+        for (const d of _devices) {
+            if (!d || d.type !== DeviceType.Wifi) continue
+            const nets = d.networks?.values ?? []
+            for (const n of nets) if (n && n.connected) return n
         }
+        return null
     }
-
-    // Find connected wifi network
-    Repeater {
-        model: wifiDevice ? wifiDevice.networks : null
-        delegate: Item {
-            required property var modelData
-            Component.onCompleted: {
-                if (modelData.connected && root.connectedNetwork === null)
-                    root.connectedNetwork = modelData
-            }
-        }
+    readonly property bool _hasEthernet: {
+        for (const d of _devices) if (d && d.type === DeviceType.Ethernet && d.connected) return true
+        return false
     }
+    readonly property bool isWifi:     connectedWifi !== null
+    readonly property bool isEthernet: !isWifi && _hasEthernet
 
     Text {
         id: _icon
@@ -55,11 +39,12 @@ Item {
         text: {
             if (isEthernet) return "󰈀"
             if (!isWifi) return "󰤭"
-            const s = wifiDevice?.signalStrength ?? 0
-            if (s >= 80) return "󰤨"
-            if (s >= 60) return "󰤥"
-            if (s >= 40) return "󰤢"
-            if (s >= 20) return "󰤟"
+            // signalStrength is a 0..1 fraction.
+            const s = root.connectedWifi ? root.connectedWifi.signalStrength : 0
+            if (s >= 0.8) return "󰤨"
+            if (s >= 0.6) return "󰤥"
+            if (s >= 0.4) return "󰤢"
+            if (s >= 0.2) return "󰤟"
             return "󰤯"
         }
         color: (isWifi || isEthernet) ? ThemeManager.onSurface : ThemeManager.onSurfaceVariant

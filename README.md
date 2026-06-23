@@ -11,6 +11,38 @@ in QML, with liquid SDF panel corners that merge into a rounded screen frame.
 > classic hyprlang (`.conf`) config you'll need to port `hypr/quickshell.lua`
 > and `scripts/hypr/*.sh` yourself.
 
+## Features
+
+- **Top bar** — per-monitor workspaces (live window thumbnails on hover),
+  clock, window title, system tray, and an opt-in status group
+  (network, Bluetooth, microphone, audio, battery), notifications and power.
+- **App launcher** — Windows-11-style start menu: type-anywhere fuzzy search,
+  full 2D arrow-key grid navigation, pinned apps with drag-to-reorder,
+  frecency-ranked recommendations, and right-click context menus. Deploys from
+  the bottom of the screen.
+- **Notification center** — popup toasts + a history panel; click a
+  notification to focus/launch its app (revealing its special workspace if
+  parked there). Do-not-disturb toggle.
+- **Dashboard** — quick-settings popout with media controls (MPRIS + a realtime
+  YouTube Music companion, with two-way auto-pause between players), audio
+  visualizer, weather, and a settings shortcut.
+- **System tray** — per-app hide, left-click to toggle a special workspace, and
+  **custom entries** to pin non-SNI apps (run a command or toggle a workspace).
+- **Tools toolbar** — opt-in dock of utilities (file explorer, Docker explorer,
+  screen recorder, …), each individually toggleable and dependency-checked.
+- **Lock screen** — session lock that survives shell hot-reload.
+- **Settings app** (`SUPER+I`) — live, in-app configuration:
+  - **Appearance modes**: frame / top-bar-only / floating islands, with live
+    switching and matching panel styling.
+  - **Theme designer**: built-in Material You themes plus create / duplicate /
+    rename / delete / import / export of custom themes; optional
+    `matugen` wallpaper-based generation.
+  - Configurable bar widgets, tray, tools, weather, and dependency overview.
+- **Liquid panel corners** — panels are SDF metaballs that smooth-merge into a
+  rounded screen frame as they deploy.
+- **Per-monitor workspaces** — every screen gets its own 1–10 range, with
+  Super+N switch / Super+Shift+N move.
+
 ## Requirements
 
 | | |

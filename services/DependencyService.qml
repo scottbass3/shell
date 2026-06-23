@@ -14,7 +14,6 @@ QtObject {
         "wf-recorder":  { bin: "wf-recorder",  pkg: "wf-recorder",   desc: "Screen recording" },
         "slurp":        { bin: "slurp",        pkg: "slurp",         desc: "Region select (recorder/screenshot)" },
         "matugen":      { bin: "matugen",      pkg: "matugen (AUR)", desc: "Wallpaper-based theming" },
-        "node":         { bin: "node",         pkg: "nodejs",        desc: "YouTube Music companion bridge" },
         "superfile":    { bin: "spf",          pkg: "superfile",     desc: "File explorer tool" },
         "beacon":       { bin: "beacon",       pkg: "beacon",        desc: "Docker repo explorer" },
         "secret-tool":  { bin: "secret-tool",  pkg: "libsecret",     desc: "Keyring (tokens, CalDAV)" },

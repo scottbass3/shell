@@ -1,23 +1,28 @@
 pragma Singleton
 import QtQuick
+import QtWebSockets
 import Quickshell.Io
 import "."
 
 // YouTube Music Desktop App — companion-server integration (ytmdesktop v2).
-// REST polling (GET /api/v1/state ~1/s) + commands (POST /api/v1/command),
-// authenticated with a token kept in the keyring (secret-tool, never plaintext
-// on disk). Gives an always-present YT Music player (even when paused) with
-// richer data than MPRIS: album art, like status, volume, queue. Position is
-// interpolated between polls. MPRIS remains the fallback when this is offline.
+// Realtime state over the companion's socket.io channel, spoken directly from
+// QML via QtWebSockets (no node bridge). Commands go over REST (POST
+// /api/v1/command); a REST /state seed fills the UI immediately on connect.
+// Authenticated with a token kept in the keyring (secret-tool, never plaintext).
+// Gives an always-present YT Music player (even when paused) with richer data
+// than MPRIS: album art, volume, queue. Position is interpolated between
+// updates. MPRIS remains the fallback when this is offline.
 QtObject {
     id: root
 
-    readonly property string _base: "http://127.0.0.1:9863/api/v1"
+    readonly property string _host: "127.0.0.1:9863"
+    readonly property string _base: "http://" + _host + "/api/v1"
+    readonly property string _ns:   "/api/v1/realtime"     // socket.io namespace
     property string _token: ""
-    property bool   active:  false   // UI sets true while watching (gates polling)
+    property bool   active:  false   // UI sets true while watching (legacy gate)
 
     // ── Exposed state ─────────────────────────────────────────────────────────
-    property bool   reachable: false          // server answered the last poll
+    property bool   reachable: false          // connected + namespace joined
     property bool   hasVideo:  false          // a track is loaded
     readonly property bool available: reachable && hasVideo
 
@@ -40,36 +45,116 @@ QtObject {
         return durationMs > 0 ? Math.min(ms, durationMs) : ms
     }
 
-    readonly property string _scriptPath:
-        Qt.resolvedUrl("../scripts/ytmd-bridge/bridge.js").toString().replace(/^file:\/\//, "")
+    // Enabled once the token is loaded and the feature is on. Always-on (not
+    // gated on `active`) so YT state is known globally — needed for cross-player
+    // auto-pause and always-present in the UI. socket.io is push, idle is cheap.
+    readonly property bool _enabled: _token !== "" && SettingsService.get("media.ytm", true)
+    on_EnabledChanged: { if (_enabled) _open(); else _ws.active = false }
 
-    // ── Token load (keyring) — for commands (the bridge reads its own) ─────────
+    // ── Token load (keyring) ──────────────────────────────────────────────────
     property Process _tokenProc: Process {
         command: ["secret-tool", "lookup", "service", "ytmd-companion", "key", "token"]
         stdout: StdioCollector { onStreamFinished: root._token = text.trim() }
     }
 
-    // ── Realtime bridge (socket.io via node) ───────────────────────────────────
-    // The companion REST /state is rate-limited to 1/5s; realtime is socket.io.
-    // A small node helper streams compact JSON state lines on stdout. Runs only
-    // while active (UI watching); stopping it disconnects the socket.
-    // bash -lc so nvm's `node` is on PATH.
-    // Always on (once the token is loaded) so YT's state is known globally —
-    // needed for cross-player auto-pause and always-present in the UI. socket.io
-    // is push (idle is cheap), so a persistent connection is fine.
-    property Process _bridge: Process {
-        running: root._token !== "" && SettingsService.get("media.ytm", true)
-        command: ["bash", "-lc", "exec node '" + root._scriptPath + "'"]
-        stdout: SplitParser { onRead: line => root._parseLine(line) }
-        onRunningChanged: if (!running) root.reachable = false
-        onExited: root.reachable = false
+    // ── Realtime: socket.io over WebSocket (engine.io v4) ─────────────────────
+    property WebSocket _ws: WebSocket {
+        url: "ws://" + root._host + "/socket.io/?EIO=4&transport=websocket"
+        active: false
+        onTextMessageReceived: msg => root._onMsg(msg)
+        onStatusChanged: s => {
+            if (s === WebSocket.Closed || s === WebSocket.Error) {
+                root.reachable = false
+                if (root._enabled) root._reTimer.restart()
+            }
+        }
+    }
+    property Timer _reTimer: Timer { interval: 3000; onTriggered: if (root._enabled) root._open() }
+
+    function _open() { _ws.active = false; _ws.active = true; _seedTries = 0 }
+
+    // engine.io/socket.io framing: <engine-type><socket-type><namespace,><json>
+    //   0{…}  engine OPEN  → send CONNECT for our namespace (with auth)
+    //   2     engine PING  → reply PONG (3)
+    //   40…   CONNECT ack  → joined namespace, seed via REST
+    //   42…   EVENT        → ["evt", payload]
+    function _onMsg(m) {
+        if (!m || m.length === 0) return
+        const t = m.charAt(0)
+        if (t === "0") {   // engine OPEN → join namespace with auth
+            _ws.sendTextMessage("40" + root._ns + "," + JSON.stringify({ token: root._token }))
+            return
+        }
+        if (t === "2") { _ws.sendTextMessage("3"); return }   // ping → pong
+        if (t !== "4") return                                  // only engine messages below
+        const st = m.charAt(1)
+        let rest = m.slice(2)
+        if (rest.charAt(0) === "/") {                          // strip "<namespace>,"
+            const ci = rest.indexOf(",")
+            rest = ci >= 0 ? rest.slice(ci + 1) : ""
+        }
+        if (st === "0") {                                      // CONNECT ack
+            root.reachable = true
+            root._seed()
+            return
+        }
+        if (st === "2") {                                      // EVENT
+            let arr
+            try { arr = JSON.parse(rest) } catch (e) { return }
+            if (!Array.isArray(arr) || arr.length < 2) return
+            const data = arr[1]
+            if (data && data.player) root._ingest(data)
+        }
     }
 
-    function _parseLine(line) {
-        if (!line || line.trim() === "") return
-        let c
-        try { c = JSON.parse(line) } catch (e) { return }   // ignore stray stderr/noise
-        if (!c.ok) return
+    // ── State shaping (ported from the old node bridge) ───────────────────────
+    property var    _cur: ({ has: false, title: "", artist: "", album: "", art: "", durationSeconds: 0 })
+    property string _lastSig: ""
+
+    function _durToSec(s) {
+        if (!s) return 0
+        const a = ("" + s).split(":").map(n => parseInt(n, 10) || 0)
+        if (a.length === 3) return a[0] * 3600 + a[1] * 60 + a[2]
+        if (a.length === 2) return a[0] * 60 + a[1]
+        return a[0] || 0
+    }
+
+    // Events are often partial (progress-only), so we carry the last known video
+    // and only overwrite its fields when a new one is present.
+    function _ingest(state) {
+        if (!state) return
+        const p = state.player || {}
+        let v = state.video
+        if (!v || !v.title) {
+            const q = p.queue
+            if (q && q.items && q.items.length) {
+                const it = q.items[q.selectedItemIndex] || q.items.find(x => x.selected)
+                if (it) v = { title: it.title, author: it.author, album: "",
+                              thumbnails: it.thumbnails, durationSeconds: _durToSec(it.duration) }
+            }
+        }
+        if (v && v.title) {
+            const th = v.thumbnails || []
+            _cur = { has: true, title: v.title, artist: v.author || "", album: v.album || "",
+                     art: (th.length ? th[th.length - 1].url : "") || _cur.art,
+                     durationSeconds: v.durationSeconds || 0 }
+        }
+        const c = {
+            has: _cur.has, title: _cur.title, artist: _cur.artist, album: _cur.album, art: _cur.art,
+            durationSeconds: _cur.durationSeconds,
+            progress: p.videoProgress || 0,
+            trackState: p.trackState,
+            volume: p.volume,
+            repeatMode: p.repeatMode || 0,
+        }
+        // de-dupe identical states (ignoring progress) while paused/stopped
+        const sig = "" + c.has + c.title + c.artist + c.trackState + c.volume + c.repeatMode
+        if (sig === _lastSig && c.trackState !== 1) return
+        _lastSig = sig
+        _apply(c)
+    }
+
+    function _apply(c) {
         reachable = true
         hasVideo  = !!c.has
         if (c.has) {
@@ -86,6 +171,27 @@ QtObject {
         _anchorTime = Date.now()
     }
 
+    // ── REST seed (immediate track on connect) ────────────────────────────────
+    // /state is rate-limited to 1/5s and returns an invalid-JSON stub when
+    // throttled, so retry every 5.5s until a track lands (max 6 tries).
+    property int _seedTries: 0
+    property Process _seedProc: Process {
+        stdout: StdioCollector { onStreamFinished: root._onSeed(text) }
+    }
+    property Timer _seedTimer: Timer { interval: 5500; onTriggered: root._seed() }
+    function _seed() {
+        if (_token === "") return
+        _seedProc.command = ["curl", "-s", "-m", "3", _base + "/state",
+                             "-H", "Authorization: " + _token]
+        _seedProc.running = false
+        _seedProc.running = true
+    }
+    function _onSeed(txt) {
+        let ok = false
+        try { _ingest(JSON.parse(txt)); ok = _cur.has } catch (e) {}
+        if (!ok && ++_seedTries < 6) _seedTimer.restart()
+    }
+
     // ── Commands ────────────────────────────────────────────────────────────--
     property Process _cmd: Process {}
     function _send(command, data) {
@@ -97,8 +203,6 @@ QtObject {
                         "-H", "Content-Type: application/json",
                         "-d", body]
         _cmd.running = true
-        // No immediate re-poll: /state is rate-limited to 1/5s. Optimistic local
-        // updates (below) cover the gap until the next scheduled poll.
     }
 
     function playPause() { _send("playPause"); playing = !playing; _anchorSec = positionMs / 1000; _anchorTime = Date.now() }

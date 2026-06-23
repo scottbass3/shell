@@ -54,22 +54,13 @@ rm -rf Caelestia && mkdir -p Caelestia
 cp -r blobs-plugin/build/qml/Caelestia/Blobs Caelestia/Blobs
 say "Plugin → $SRC/Caelestia/Blobs"
 
-# ── YouTube Music bridge deps (optional) ─────────────────────────────────────
-if need npm; then
-    say "Installing YT Music bridge deps…"
-    ( cd scripts/ytmd-bridge && npm install --silent ) \
-        || warn "npm install failed — YT Music integration is optional"
-else
-    warn "npm not found — skipping YT Music bridge (optional)"
-fi
-
 # ── User state dir (settings, themes, pins) lives outside the checkout ───────
 mkdir -p "${XDG_STATE_HOME:-$HOME/.local/state}/quickshell"
 chmod +x launch.sh scripts/hypr/*.sh 2>/dev/null || true
 
 # ── Optional runtime dependency report ───────────────────────────────────────
 say "Optional runtime dependencies (features light up when present):"
-for d in matugen cava node jq playerctl brightnessctl grim slurp wl-copy hypridle secret-tool wf-recorder superfile; do
+for d in matugen cava brightnessctl wf-recorder slurp secret-tool superfile beacon; do
     if need "$d"; then printf '   \033[32m✓\033[0m %s\n' "$d"
     else                printf '   \033[33m–\033[0m %s\n' "$d"; fi
 done

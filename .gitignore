@@ -5,9 +5,6 @@
 /Caelestia/
 /blobs-plugin/build/
 
-# ── Node bridge dependencies (npm install) ───────────────────────────────────
-/scripts/ytmd-bridge/node_modules/
-
 # ── Editor / OS noise ────────────────────────────────────────────────────────
 *.swp
 *~

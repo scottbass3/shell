@@ -14,11 +14,17 @@ Item {
     implicitHeight: Math.min(_col.implicitHeight + 16, 400)
 
     readonly property bool active: PopoutService.currentName === "network"
-    onActiveChanged: if (active) _rescan()
+    // Data is kept warm by the background poller, so opening just nudges a
+    // silent refresh — no visible "scanning" flash.
+    onActiveChanged: if (active) _bgRefresh()
 
-    // Warm the AP cache once at startup so the very first open paints instantly
-    // instead of waiting on a cold radio scan.
+    // Initial cold warm-up (visible) + a steady background poll so the list is
+    // already current whenever the panel opens, without needing to open it.
     Component.onCompleted: _rescan()
+    property Timer _pollTimer: Timer {
+        interval: 30000; repeat: true; running: true
+        onTriggered: root._bgRefresh()
+    }
 
     // ── nmcli-backed state ────────────────────────────────────────────────────
     property bool wifiEnabled: false
@@ -28,12 +34,22 @@ Item {
 
     property bool _freshArrived: false   // fresh rescan applied this cycle
 
+    // Visible refresh: instant cached paint + forced rescan, flagged as scanning.
+    // Used only for the cold startup warm-up.
     function _rescan() {
         _freshArrived = false
         scanning = true
         _wifiState.running  = true
         _wifiScan.running   = true   // instant cached list (--rescan no)
         _wifiRescan.running = true   // background radio rescan, refreshes when done
+        _vpnScan.running    = true
+    }
+
+    // Silent refresh: forced fresh radio rescan that updates the rows in place
+    // without toggling the scanning/dim UI. Runs on the poll timer and on open.
+    function _bgRefresh() {
+        _wifiState.running  = true
+        _wifiRescan.running = true
         _vpnScan.running    = true
     }
 

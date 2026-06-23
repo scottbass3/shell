@@ -1,6 +1,7 @@
 pragma Singleton
 import QtQuick
 import Quickshell.Io
+import "."
 import "../theme"
 
 // Lists wallpapers in ~/wallpaper and applies one via hyprpaper + matugen theme.
@@ -23,12 +24,23 @@ QtObject {
         ThemeManager.generateWallpaperTheme(path)
     }
 
-    // Preview + write hyprpaper.conf so it survives a restart.
+    // Preview + persist (settings + hyprpaper.conf) so it survives a restart.
     function commit(path) {
         if (!path) return
         preview(path)
+        SettingsService.set("wallpaper.path", path)
         _persistProc.command = ["sh", "-c", _persistScript, "sh", path]
         _persistProc.running = true
+    }
+
+    // Re-apply the saved wallpaper image on startup WITHOUT regenerating the
+    // theme — the active theme is persisted separately by ThemeManager, so
+    // running matugen here would clobber a theme the user kept.
+    function _restore(path) {
+        if (!path) return
+        current = path
+        _live.command = ["sh", "-c", _liveScript, "sh", path]
+        _live.running = true
     }
 
     // Back-compat alias (mouse click = immediate commit)
@@ -60,5 +72,9 @@ QtObject {
         }
     }
 
-    Component.onCompleted: refresh()
+    Component.onCompleted: {
+        refresh()
+        const saved = SettingsService.get("wallpaper.path", "")
+        if (saved !== "") _restore(saved)
+    }
 }

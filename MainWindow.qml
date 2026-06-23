@@ -180,7 +180,14 @@ PanelWindow {
     Timer {
         id: _toolsCollapse
         interval: 350
-        onTriggered: { if (!_toolsHover.hovered && !_toolsPickHover.hovered) root._toolsHovered = false }
+        onTriggered: {
+            if (_toolsHover.hovered || _toolsPickHover.hovered) return
+            root._toolsHovered = false
+            // Mouse-mode wallpaper picker (keyboard mode keeps ToolsService.open
+            // true): leaving the rail+picker closes it, which reverts the live
+            // hover preview to the committed wallpaper (onWpOpenChanged).
+            if (ToolsService.wpOpen && !ToolsService.open) ToolsService.wpOpen = false
+        }
     }
     function _toolsEval() {
         if (_toolsHover.hovered || _toolsPickHover.hovered) { root._toolsHovered = true; _toolsCollapse.stop() }
@@ -697,7 +704,13 @@ PanelWindow {
                             border.width: (WallpaperService.current === modelData || parent._kbdSel) ? 2 : 0
                             border.color: ThemeManager.primary
                         }
-                        HoverHandler { id: _wpItemHov }
+                        HoverHandler {
+                            id: _wpItemHov
+                            // Hovering previews the wallpaper, reusing the keyboard
+                            // selection + debounced-preview machinery. Leaving the
+                            // picker without clicking reverts (onWpOpenChanged).
+                            onHoveredChanged: if (hovered) ToolsService.wpSelected = index
+                        }
                         Rectangle {
                             anchors.fill: parent; radius: parent.radius
                             color: Qt.rgba(0, 0, 0, (_wpItemHov.hovered || parent._kbdSel) ? 0.18 : 0)

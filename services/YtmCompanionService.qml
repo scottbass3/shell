@@ -1,6 +1,5 @@
 pragma Singleton
 import QtQuick
-import QtWebSockets
 import Quickshell.Io
 import "."
 
@@ -48,8 +47,12 @@ QtObject {
     // Enabled once the token is loaded and the feature is on. Always-on (not
     // gated on `active`) so YT state is known globally — needed for cross-player
     // auto-pause and always-present in the UI. socket.io is push, idle is cheap.
-    readonly property bool _enabled: _token !== "" && SettingsService.get("media.ytm", true)
-    on_EnabledChanged: { if (_enabled) _open(); else _ws.active = false }
+    // Also requires the optional qt6-websockets QML module; without it the
+    // socket never loads and MPRIS remains the source of truth.
+    readonly property bool _enabled: _token !== ""
+        && SettingsService.get("media.ytm", true)
+        && DependencyService.available("qt6-websockets")
+    on_EnabledChanged: { if (_enabled) _open(); else if (_wsLoader.item) _wsLoader.item.wsActive = false }
 
     // ── Token load (keyring) ──────────────────────────────────────────────────
     property Process _tokenProc: Process {
@@ -58,20 +61,33 @@ QtObject {
     }
 
     // ── Realtime: socket.io over WebSocket (engine.io v4) ─────────────────────
-    property WebSocket _ws: WebSocket {
-        url: "ws://" + root._host + "/socket.io/?EIO=4&transport=websocket"
-        active: false
-        onTextMessageReceived: msg => root._onMsg(msg)
-        onStatusChanged: s => {
-            if (s === WebSocket.Closed || s === WebSocket.Error) {
-                root.reachable = false
-                if (root._enabled) root._reTimer.restart()
-            }
+    // The WebSocket itself lives in YtmSocket.qml, loaded only when the optional
+    // qt6-websockets module is present (DependencyService gate) — so the import
+    // can't hard-fail the shell when the module is absent.
+    property Loader _wsLoader: Loader {
+        active: root._enabled
+        source: "YtmSocket.qml"
+        onLoaded: {
+            item.url = "ws://" + root._host + "/socket.io/?EIO=4&transport=websocket"
+            item.messageReceived.connect(root._onMsg)
+            item.disconnected.connect(root._onDisconnect)
+            root._open()
         }
+    }
+    function _wsSend(m) { if (_wsLoader.item) _wsLoader.item.send(m) }
+    function _onDisconnect() {
+        root.reachable = false
+        if (root._enabled) root._reTimer.restart()
     }
     property Timer _reTimer: Timer { interval: 3000; onTriggered: if (root._enabled) root._open() }
 
-    function _open() { _ws.active = false; _ws.active = true; _seedTries = 0 }
+    function _open() {
+        const it = _wsLoader.item
+        if (!it) return
+        it.wsActive = false
+        it.wsActive = true
+        _seedTries = 0
+    }
 
     // engine.io/socket.io framing: <engine-type><socket-type><namespace,><json>
     //   0{…}  engine OPEN  → send CONNECT for our namespace (with auth)
@@ -82,10 +98,10 @@ QtObject {
         if (!m || m.length === 0) return
         const t = m.charAt(0)
         if (t === "0") {   // engine OPEN → join namespace with auth
-            _ws.sendTextMessage("40" + root._ns + "," + JSON.stringify({ token: root._token }))
+            _wsSend("40" + root._ns + "," + JSON.stringify({ token: root._token }))
             return
         }
-        if (t === "2") { _ws.sendTextMessage("3"); return }   // ping → pong
+        if (t === "2") { _wsSend("3"); return }   // ping → pong
         if (t !== "4") return                                  // only engine messages below
         const st = m.charAt(1)
         let rest = m.slice(2)

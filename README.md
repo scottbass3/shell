@@ -53,7 +53,6 @@ in QML, with liquid SDF panel corners that merge into a rounded screen frame.
 | **Compositor** | Hyprland 0.55+ with the **Lua** config system |
 | **Shell** | [`quickshell`](https://quickshell.outfoxxed.me) (git/0.3.x) |
 | **Build** | `cmake`, `make`, a C++20 compiler, **Qt 6.8+** (Core, Qml, Quick, ShaderTools) |
-| **Qt module** | `qt6-websockets` (YouTube Music realtime; safe to skip if unused) |
 | **VCS** | `git` |
 
 ### Optional runtime dependencies
@@ -67,6 +66,7 @@ Dependencies shows what's missing.
 | `cava` | Audio visualizer |
 | `brightnessctl` | Brightness control |
 | `secret-tool` (libsecret) | Keyring for tokens (e.g. YT Music) |
+| `qt6-websockets` (Qt module) | YouTube Music companion (realtime) |
 
 The tools toolbar is **user-defined**: add your own buttons in Settings → Tools
 (name + command + icon), so anything you'd launch — a file manager, screen
@@ -75,7 +75,9 @@ theme picker is the one built-in tool (uses `matugen`).
 
 Media (play/pause/next, metadata) uses Quickshell's native MPRIS — no
 `playerctl` needed. The optional YouTube Music companion talks to the
-ytmdesktop server directly over a WebSocket (`qt6-websockets`) — no Node.
+ytmdesktop server directly over a WebSocket — no Node. It needs the
+`qt6-websockets` Qt module; without it the companion stays off and MPRIS is the
+source of truth.
 Screenshots, clipboard and idle-lock are **Hyprland-side**:
 wire your own `hyprland.lua` binds (e.g. `grim`/`slurp`/`wl-copy`) and run an
 idle daemon (e.g. `hypridle` calling `qs ipc call lock lock`) if you want them.

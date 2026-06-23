@@ -18,8 +18,10 @@ QtObject {
 
     // User tools + the built-in wallpaper button.
     readonly property var  customTools: SettingsService.get("tools.custom", [])
+    // Needs matugen (theme generation) and hyprpaper (apply the wallpaper).
     readonly property bool wpEnabled:   SettingsService.get("tools.wallpaper", true)
                                         && DependencyService.available("matugen")
+                                        && DependencyService.available("hyprpaper")
     readonly property int  wpIndex: customTools.length
     readonly property int  count:   customTools.length + (wpEnabled ? 1 : 0)
 

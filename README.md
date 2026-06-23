@@ -62,11 +62,21 @@ Dependencies shows what's missing.
 
 | Tool | Enables |
 |---|---|
-| `matugen` | Wallpaper → Material You theme generation |
+| `matugen` + `hyprpaper` | Wallpaper switcher + Material You theme generation |
 | `cava` | Audio visualizer |
 | `brightnessctl` | Brightness control |
 | `secret-tool` (libsecret) | Keyring for tokens (e.g. YT Music) |
 | `qt6-websockets` (Qt module) | YouTube Music companion (realtime) |
+| `khal` (+ `vdirsyncer`) | Calendar events (+ create/sync) |
+| `nmcli` (networkmanager) | VPN section in the network panel |
+| `nm-connection-editor` | "Open network settings" button |
+| `blueman-manager` | "Open blueman-manager" button |
+
+Wi-Fi (list, connect, radio toggle), Bluetooth and battery alerts need **no
+external tools** — they use Quickshell's native NetworkManager/BlueZ/UPower
+bindings and the shell's own notifications. Weather and the YouTube Music
+companion use Qt's built-in HTTP client (no `curl`). Each missing tool above
+just hides its feature; Settings → Dependencies shows what's absent.
 
 The tools toolbar is **user-defined**: add your own buttons in Settings → Tools
 (name + command + icon), so anything you'd launch — a file manager, screen

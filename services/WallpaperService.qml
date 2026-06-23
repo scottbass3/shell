@@ -13,11 +13,14 @@ QtObject {
     property var    wallpapers: []   // absolute file paths
     property string current:    ""
 
-    function refresh() { _list.running = true }
+    // hyprpaper is the wallpaper backend; without it the whole switcher is off.
+    readonly property bool available: DependencyService.available("hyprpaper")
+
+    function refresh() { if (available) _list.running = true }
 
     // Live apply (hyprpaper) + matugen theme; no config persistence.
     function preview(path) {
-        if (!path) return
+        if (!path || !available) return
         current = path
         _live.command = ["sh", "-c", _liveScript, "sh", path]
         _live.running = true
@@ -26,7 +29,7 @@ QtObject {
 
     // Preview + persist (settings + hyprpaper.conf) so it survives a restart.
     function commit(path) {
-        if (!path) return
+        if (!path || !available) return
         preview(path)
         SettingsService.set("wallpaper.path", path)
         _persistProc.command = ["sh", "-c", _persistScript, "sh", path]
@@ -37,7 +40,7 @@ QtObject {
     // theme — the active theme is persisted separately by ThemeManager, so
     // running matugen here would clobber a theme the user kept.
     function _restore(path) {
-        if (!path) return
+        if (!path || !available) return
         current = path
         _live.command = ["sh", "-c", _liveScript, "sh", path]
         _live.running = true

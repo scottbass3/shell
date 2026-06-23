@@ -1,12 +1,15 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell.Io
+import Quickshell.Networking
 import "../theme"
 import "../services"
 
-// Bar hover popout for Wi-Fi + VPN — same controls as the dashboard quick
-// settings (toggle radio, pick a network, toggle VPN connections). Backed by
-// nmcli; scans only while the popout is the active one.
+// Bar hover popout for Wi-Fi + VPN. Wi-Fi is driven natively by
+// Quickshell.Networking (reactive — no nmcli). VPN connections aren't exposed by
+// that module, so the VPN section uses nmcli and only appears when nmcli is
+// installed (soft dependency). The network-settings GUI button likewise shows
+// only when nm-connection-editor is present.
 Item {
     id: root
 
@@ -14,100 +17,52 @@ Item {
     implicitHeight: Math.min(_col.implicitHeight + 16, 400)
 
     readonly property bool active: PopoutService.currentName === "network"
-    // Data is kept warm by the background poller, so opening just nudges a
-    // silent refresh — no visible "scanning" flash.
-    onActiveChanged: if (active) _bgRefresh()
+    onActiveChanged: if (active && _vpnAvailable) _vpnScan.running = true
 
-    // Initial cold warm-up (visible) + a steady background poll so the list is
-    // already current whenever the panel opens, without needing to open it.
-    Component.onCompleted: _rescan()
-    property Timer _pollTimer: Timer {
-        interval: 30000; repeat: true; running: true
-        onTriggered: root._bgRefresh()
+    // ── Wi-Fi (Quickshell.Networking, reactive) ──────────────────────────────
+    readonly property bool wifiEnabled: Networking.wifiEnabled
+
+    // First wifi device — drives the network list and the AP scanner.
+    readonly property var _wifiDev: {
+        const ds = Networking.devices?.values ?? []
+        for (const d of ds) if (d && d.type === DeviceType.Wifi) return d
+        return null
     }
 
-    // ── nmcli-backed state ────────────────────────────────────────────────────
-    property bool wifiEnabled: false
-    property var  wifiNetworks: []   // [{ ssid, signal, active }]
-    property var  vpnList:      []   // [{ name, active }]
-    property bool scanning:     false
-
-    property bool _freshArrived: false   // fresh rescan applied this cycle
-
-    // Visible refresh: instant cached paint + forced rescan, flagged as scanning.
-    // Used only for the cold startup warm-up.
-    function _rescan() {
-        _freshArrived = false
-        scanning = true
-        _wifiState.running  = true
-        _wifiScan.running   = true   // instant cached list (--rescan no)
-        _wifiRescan.running = true   // background radio rescan, refreshes when done
-        _vpnScan.running    = true
+    // Run the AP scanner only while the panel is open (keeps the list fresh
+    // without polling the radio constantly when idle).
+    Binding {
+        target: root._wifiDev
+        property: "scannerEnabled"
+        value: root.active
+        when: root._wifiDev !== null
     }
 
-    // Silent refresh: forced fresh radio rescan that updates the rows in place
-    // without toggling the scanning/dim UI. Runs on the poll timer and on open.
-    function _bgRefresh() {
-        _wifiState.running  = true
-        _wifiRescan.running = true
-        _vpnScan.running    = true
+    // Connected first, then by signal. WifiNetwork.name is the SSID,
+    // signalStrength is a 0..1 fraction.
+    readonly property var wifiNetworks: {
+        const dev = root._wifiDev
+        if (!dev || !root.wifiEnabled) return []
+        const ns = (dev.networks?.values ?? []).filter(n => n && n.name && n.name !== "")
+        ns.sort((a, b) => (b.connected - a.connected) || (b.signalStrength - a.signalStrength))
+        return ns
     }
 
-    // Shared parser for both the cached and rescanned `nmcli ... wifi list`.
-    // Merge by SSID across BSSIDs: keep max signal, OR the in-use flag. The
-    // cached list paints first but may be stale; only the fresh rescan clears
-    // the refreshing state, and a late cached result never clobbers it.
-    function _parseWifi(text, fresh) {
-        if (!fresh && root._freshArrived) return
-        const byId = {}
-        for (const ln of text.trim().split("\n")) {
-            if (!ln) continue
-            const f = ln.split(":")
-            const ssid = f.slice(2).join(":")
-            if (!ssid) continue
-            const sig = parseInt(f[1]) || 0
-            const act = f[0] === "*"
-            if (byId[ssid]) {
-                byId[ssid].signal = Math.max(byId[ssid].signal, sig)
-                byId[ssid].active = byId[ssid].active || act
-            } else {
-                byId[ssid] = { ssid: ssid, signal: sig, active: act }
-            }
-        }
-        const rows = Object.keys(byId).map(k => byId[k])
-        rows.sort((a, b) => (b.active - a.active) || (b.signal - a.signal))
-        root.wifiNetworks = rows
-        if (fresh) { root._freshArrived = true; root.scanning = false }
-    }
+    function _toggleWifi() { Networking.wifiEnabled = !Networking.wifiEnabled }
 
-    // Run an nmcli action then re-scan shortly after.
+    // ── VPN (nmcli — soft dependency) ─────────────────────────────────────────
+    readonly property bool _vpnAvailable: DependencyService.available("nmcli")
+    property var vpnList: []   // [{ name, active }]
+
     property Process _nmAction: Process { running: false }
     function _nm(args) {
         _nmAction.command = args
         _nmAction.running = true
-        _rescanTimer.restart()
+        _vpnRescan.restart()
     }
-    property Timer _rescanTimer: Timer {
+    property Timer _vpnRescan: Timer {
         interval: 1500; repeat: false
-        onTriggered: root._rescan()
-    }
-
-    property Process _wifiState: Process {
-        command: ["sh", "-c", "nmcli -t -f WIFI radio 2>/dev/null"]
-        running: false
-        stdout: StdioCollector { onStreamFinished: root.wifiEnabled = text.trim() === "enabled" }
-    }
-    // Cached list — returns immediately without forcing a radio scan.
-    property Process _wifiScan: Process {
-        command: ["sh", "-c", "nmcli -t -f IN-USE,SIGNAL,SSID device wifi list --rescan no 2>/dev/null"]
-        running: false
-        stdout: StdioCollector { onStreamFinished: root._parseWifi(text, false) }
-    }
-    // Fresh radio rescan — slower, refreshes the list once it completes.
-    property Process _wifiRescan: Process {
-        command: ["sh", "-c", "nmcli -t -f IN-USE,SIGNAL,SSID device wifi list --rescan yes 2>/dev/null"]
-        running: false
-        stdout: StdioCollector { onStreamFinished: root._parseWifi(text, true) }
+        onTriggered: if (root._vpnAvailable) root._vpnScan.running = true
     }
     property Process _vpnScan: Process {
         command: ["sh", "-c", "nmcli -t -f NAME,TYPE,STATE connection show 2>/dev/null"]
@@ -127,6 +82,8 @@ Item {
         }
     }
 
+    // ── Network-settings GUI button (nm-connection-editor — soft dependency) ──
+    readonly property bool _nmEditorAvailable: DependencyService.available("nm-connection-editor")
     property Process _nmEditor: Process { command: ["nm-connection-editor"] }
     function _launch(proc) { proc.running = true; PopoutService.close() }
 
@@ -149,10 +106,7 @@ Item {
             MenuHeader {
                 title: "Wi-Fi"
                 on: root.wifiEnabled
-                onToggled: {
-                    root._nm(["nmcli", "radio", "wifi", root.wifiEnabled ? "off" : "on"])
-                    root.wifiEnabled = !root.wifiEnabled
-                }
+                onToggled: root._toggleWifi()
             }
             Text {
                 visible: !root.wifiEnabled
@@ -162,11 +116,9 @@ Item {
                 opacity: 0.6
                 Layout.topMargin: 4
             }
-            // Refreshing cue — the cached list paints first and may be stale, so
-            // flag it until the fresh radio scan lands.
             Text {
-                visible: root.wifiEnabled && root.scanning
-                text: root.wifiNetworks.length === 0 ? "Scanning…" : "Refreshing…"
+                visible: root.wifiEnabled && root.wifiNetworks.length === 0
+                text: "Scanning…"
                 color: ThemeManager.onSurfaceVariant
                 font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
                 opacity: 0.6
@@ -176,37 +128,35 @@ Item {
                 model: root.wifiEnabled ? root.wifiNetworks : []
                 delegate: MenuRow {
                     required property var modelData
-                    text: modelData.ssid
-                    // Dim while a fresh scan is pending — the cached values
-                    // (signal, presence) may not be current yet.
-                    opacity: root.scanning ? 0.5 : 1
+                    text: modelData.name
                     icon: {
-                        const s = modelData.signal
-                        if (s >= 80) return "󰤨"
-                        if (s >= 55) return "󰤥"
-                        if (s >= 30) return "󰤢"
+                        const s = modelData.signalStrength   // 0..1
+                        if (s >= 0.8)  return "󰤨"
+                        if (s >= 0.55) return "󰤥"
+                        if (s >= 0.3)  return "󰤢"
                         return "󰤟"
                     }
-                    active:   modelData.active
-                    trailing: modelData.active ? "Connected" : ""
-                    onClicked: if (!modelData.active)
-                        root._nm(["nmcli", "device", "wifi", "connect", modelData.ssid])
+                    active:   modelData.connected
+                    trailing: modelData.connected ? "Connected" : ""
+                    onClicked: if (!modelData.connected) modelData.connect()
                 }
             }
 
-            // ── VPN ───────────────────────────────────────────────────────────
+            // ── VPN (only when nmcli is available) ─────────────────────────────
             Rectangle {
+                visible: root._vpnAvailable
                 Layout.fillWidth: true; Layout.topMargin: 6; Layout.bottomMargin: 2
                 height: 1; color: ThemeManager.outlineVariant; opacity: 0.3
             }
             Text {
+                visible: root._vpnAvailable
                 text: "VPN"
                 color: ThemeManager.onSurfaceVariant
                 font.family: ThemeManager.fontFamily
                 font.pixelSize: ThemeManager.fontSizeSm; font.weight: Font.Medium
             }
             Text {
-                visible: root.vpnList.length === 0
+                visible: root._vpnAvailable && root.vpnList.length === 0
                 text: "No VPN connections"
                 color: ThemeManager.onSurfaceVariant
                 font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
@@ -214,7 +164,7 @@ Item {
                 Layout.topMargin: 4
             }
             Repeater {
-                model: root.vpnList
+                model: root._vpnAvailable ? root.vpnList : []
                 delegate: MenuRow {
                     required property var modelData
                     text:     modelData.name
@@ -225,7 +175,11 @@ Item {
                 }
             }
 
-            MenuFooter { text: "Open network settings"; onClicked: root._launch(root._nmEditor) }
+            MenuFooter {
+                visible: root._nmEditorAvailable
+                text: "Open network settings"
+                onClicked: root._launch(root._nmEditor)
+            }
         }
     }
 

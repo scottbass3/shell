@@ -13,6 +13,8 @@ Item {
     implicitWidth:  250
     implicitHeight: Math.min(_col.implicitHeight + 16, 400)
 
+    // The manager GUI button only shows when blueman-manager is installed.
+    readonly property bool _bluemanAvailable: DependencyService.available("blueman-manager")
     property Process _blueman: Process { command: ["blueman-manager"] }
     function _launch(proc) { proc.running = true; PopoutService.close() }
 
@@ -59,7 +61,11 @@ Item {
                 }
             }
 
-            MenuFooter { text: "Open blueman-manager"; onClicked: root._launch(root._blueman) }
+            MenuFooter {
+                visible: root._bluemanAvailable
+                text: "Open blueman-manager"
+                onClicked: root._launch(root._blueman)
+            }
         }
     }
 

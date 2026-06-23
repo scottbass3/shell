@@ -959,7 +959,7 @@ Item {
                         font.pixelSize: ThemeManager.fontSizeMd; font.weight: Font.Bold
                         elide: Text.ElideRight
                     }
-                    CalIconBtn { icon: root.calCreating ? "󰅖" : "󰐕"; onClicked: root.calCreating = !root.calCreating }
+                    CalIconBtn { visible: CalendarService.canCreate; icon: root.calCreating ? "󰅖" : "󰐕"; onClicked: root.calCreating = !root.calCreating }
                     CalIconBtn { icon: "󰅖"; onClicked: root.calSelectedDate = "" }
                 }
 

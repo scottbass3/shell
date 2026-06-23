@@ -11,11 +11,17 @@ QtObject {
     // name → { bin | qml, pkg (install hint), desc }
     //   bin: probed with `command -v`   qml: probed for the QML module's qmldir
     readonly property var deps: ({
-        "cava":          { bin: "cava",         pkg: "cava",          desc: "Audio visualizer" },
-        "matugen":       { bin: "matugen",      pkg: "matugen (AUR)", desc: "Wallpaper-based theming" },
-        "secret-tool":   { bin: "secret-tool",  pkg: "libsecret",     desc: "Keyring (tokens, CalDAV)" },
-        "brightnessctl": { bin: "brightnessctl",pkg: "brightnessctl", desc: "Brightness control" },
-        "qt6-websockets":{ qml: "QtWebSockets", pkg: "qt6-websockets",desc: "YouTube Music companion (realtime)" }
+        "cava":               { bin: "cava",                pkg: "cava",                 desc: "Audio visualizer" },
+        "matugen":            { bin: "matugen",             pkg: "matugen (AUR)",        desc: "Wallpaper-based theming" },
+        "secret-tool":        { bin: "secret-tool",         pkg: "libsecret",            desc: "Keyring (tokens, CalDAV)" },
+        "brightnessctl":      { bin: "brightnessctl",       pkg: "brightnessctl",        desc: "Brightness control" },
+        "qt6-websockets":     { qml: "QtWebSockets",        pkg: "qt6-websockets",       desc: "YouTube Music companion (realtime)" },
+        "hyprpaper":          { bin: "hyprpaper",           pkg: "hyprpaper",            desc: "Wallpaper switcher + theme" },
+        "khal":               { bin: "khal",                pkg: "khal",                 desc: "Calendar events" },
+        "vdirsyncer":         { bin: "vdirsyncer",          pkg: "vdirsyncer",           desc: "Calendar sync (CalDAV)" },
+        "nmcli":              { bin: "nmcli",               pkg: "networkmanager",       desc: "VPN connections (network panel)" },
+        "nm-connection-editor":{ bin: "nm-connection-editor",pkg: "nm-connection-editor", desc: "Network settings GUI button" },
+        "blueman-manager":    { bin: "blueman-manager",     pkg: "blueman",              desc: "Bluetooth manager GUI button" }
     })
 
     property var present: ({})   // name → bool

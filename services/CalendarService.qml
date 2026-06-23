@@ -1,12 +1,20 @@
 pragma Singleton
 import QtQuick
 import Quickshell.Io
+import "."
 
-// CalDAV-backed calendar via khal (synced by vdirsyncer).
+// CalDAV-backed calendar via khal (synced by vdirsyncer) — both optional.
 // Loads the visible month's events, exposes per-date lookup + dots, and
-// creates events (khal new → vdirsyncer sync → reload).
+// creates events (khal new → vdirsyncer sync → reload). When khal is absent the
+// whole events feature is disabled (the month grid still works as a date view);
+// without vdirsyncer, events still load but aren't synced/created.
 QtObject {
     id: root
+
+    // Feature gate — events need khal; creating/syncing also needs vdirsyncer.
+    readonly property bool available:    DependencyService.available("khal")
+    readonly property bool _canSync:     DependencyService.available("vdirsyncer")
+    readonly property bool canCreate:    available && _canSync
 
     // { "YYYY-MM-DD": [ {title,sdate,stime,edate,etime,location,calendar,uid,description} ] }
     property var  eventsByDate: ({})
@@ -19,6 +27,7 @@ QtObject {
 
     function loadMonth(viewDate) {
         _lastView = viewDate
+        if (!available) { root.eventsByDate = ({}); return }
         // Grid range: Monday on/before the 1st, 42 days (6 weeks)
         const first  = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1)
         const offset = (first.getDay() + 6) % 7
@@ -33,7 +42,7 @@ QtObject {
     function hasEvents(dateStr) { const e = eventsByDate[dateStr]; return !!e && e.length > 0 }
 
     function createEvent(dateStr, startTime, endTime, summary, location) {
-        if (busy || !summary) return
+        if (busy || !summary || !canCreate) return
         busy = true
         const args = ["khal", "new", "-a", "personal"]
         if (location && location !== "") { args.push("-l"); args.push(location) }

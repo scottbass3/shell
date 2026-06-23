@@ -396,7 +396,7 @@ PanelWindow {
                         SettingSection { text: "Media player" }
                         SettingToggle { label: "Audio visualizer"; dep: "cava"; path: "media.visualizer"; def: true }
                         SettingToggle { label: "Bongo cat"; path: "media.bongo"; def: true }
-                        SettingToggle { label: "YouTube Music companion"; sub: "Realtime integration (needs node)"; dep: "node"; path: "media.ytm"; def: true }
+                        SettingToggle { label: "YouTube Music companion"; sub: "Realtime integration (ytmdesktop companion server)"; path: "media.ytm"; def: true }
                     }
 
                     // Notifications -------------------------------------------------

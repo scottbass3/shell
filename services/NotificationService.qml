@@ -180,6 +180,9 @@ QtObject {
         notifList = notifList.filter(n => n !== notif)
         _toastEntries = _toastEntries.filter(e => e.n !== notif)
         notifCount = notifList.length
+        // App closed/replaced this notif — keep the unread badge in sync so it
+        // can't outlive the list (stale count over an empty center).
+        if (unreadCount > notifCount) unreadCount = notifCount
     }
 
     function dismissAll() {

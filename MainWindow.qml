@@ -58,6 +58,8 @@ PanelWindow {
             case "powerprofile": return _powerProfileLoader.item?.implicitWidth ?? 190
             case "dashboard": return _dashboardLoader.item?.implicitWidth ?? 360
             case "notif":    return _notifLoader.item?.implicitWidth    ?? 320
+            case "network":  return _networkLoader.item?.implicitWidth  ?? 260
+            case "bluetooth": return _bluetoothLoader.item?.implicitWidth ?? 250
             case "traymenu": return _trayMenuLoader.item?.implicitWidth ?? 200
             case "workspaces": return _workspacesLoader.item?.implicitWidth ?? 320
             default:         return 180
@@ -71,6 +73,8 @@ PanelWindow {
             case "powerprofile": return Math.min(_powerProfileLoader.item?.implicitHeight ?? 0, _popoutMaxHeight)
             case "dashboard": return Math.min(_dashboardLoader.item?.implicitHeight ?? 0, 700)
             case "notif":    return Math.min(_notifLoader.item?.implicitHeight    ?? 0, _popoutMaxHeight)
+            case "network":  return Math.min(_networkLoader.item?.implicitHeight  ?? 0, _popoutMaxHeight)
+            case "bluetooth": return Math.min(_bluetoothLoader.item?.implicitHeight ?? 0, _popoutMaxHeight)
             case "traymenu": return Math.min(_trayMenuLoader.item?.implicitHeight ?? 0, _popoutMaxHeight)
             case "workspaces": return Math.min(_workspacesLoader.item?.implicitHeight ?? 0, 520)
             default:         return 0
@@ -473,6 +477,44 @@ PanelWindow {
             // which the container only clips — never scrolls).
             width:  item ? item.implicitWidth : 320
             height: Math.min(item ? item.implicitHeight : 0, root._popoutMaxHeight)
+            enabled: _active
+            visible: _active || opacity > 0
+            opacity: _active ? 1 : 0
+            scale:   _active ? 1 : 0.85
+            Behavior on opacity { NumberAnimation { duration: 180 } }
+            Behavior on scale {
+                NumberAnimation {
+                    duration:           300
+                    easing.type:        Easing.Bezier
+                    easing.bezierCurve: [0.05, 0.7, 0.1, 1.0, 1.0, 1.0]
+                }
+            }
+        }
+
+        Loader {
+            id: _networkLoader
+            anchors.centerIn: parent
+            source: "panels/NetworkPanel.qml"
+            readonly property bool _active: PopoutService.currentName === "network"
+            enabled: _active
+            visible: _active || opacity > 0
+            opacity: _active ? 1 : 0
+            scale:   _active ? 1 : 0.85
+            Behavior on opacity { NumberAnimation { duration: 180 } }
+            Behavior on scale {
+                NumberAnimation {
+                    duration:           300
+                    easing.type:        Easing.Bezier
+                    easing.bezierCurve: [0.05, 0.7, 0.1, 1.0, 1.0, 1.0]
+                }
+            }
+        }
+
+        Loader {
+            id: _bluetoothLoader
+            anchors.centerIn: parent
+            source: "panels/BluetoothPanel.qml"
+            readonly property bool _active: PopoutService.currentName === "bluetooth"
             enabled: _active
             visible: _active || opacity > 0
             opacity: _active ? 1 : 0

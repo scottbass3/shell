@@ -2,9 +2,12 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell.Bluetooth
 import "../../theme"
+import "../../services"
 
 Item {
     id: root
+
+    property var barScreen: null
 
     implicitWidth:  _row.implicitWidth
     implicitHeight: _row.implicitHeight
@@ -46,12 +49,15 @@ Item {
         }
     }
 
-    MouseArea {
-        anchors.fill: parent
-        acceptedButtons: Qt.LeftButton
-        cursorShape: Qt.PointingHandCursor
-        onClicked: {
-            if (adapter) adapter.enabled = !adapter.enabled
+    HoverHandler {
+        onHoveredChanged: {
+            const pos = root.mapToItem(null, root.width / 2, 0)
+            if (hovered) {
+                PopoutService.open("bluetooth", pos.x, root.barScreen)
+                PopoutService.widgetHovered = true
+            } else {
+                PopoutService.widgetHovered = false
+            }
         }
     }
 }

@@ -118,6 +118,18 @@ QtObject {
     //  - no window found → launch the app from its desktop entry
     function activate(notif) {
         if (!notif) return
+
+        // Invoke the notification's "default" action first. Messaging apps
+        // (Discord, Telegram, Element, …) register it to jump straight to the
+        // channel/conversation the message came from — far better than just
+        // raising the window. The window-reveal logic below still runs so a
+        // tray-parked (special-workspace) app the action can't surface on its
+        // own gets revealed too.
+        const acts = notif.actions ?? []
+        for (let a = 0; a < acts.length; a++) {
+            if (("" + (acts[a].identifier ?? "")) === "default") { acts[a].invoke(); break }
+        }
+
         const cands = []
         if (notif.desktopEntry) cands.push(("" + notif.desktopEntry).toLowerCase())
         if (notif.appName)      cands.push(("" + notif.appName).toLowerCase())

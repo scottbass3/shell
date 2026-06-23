@@ -63,6 +63,7 @@ Dependencies shows what's missing.
 | Tool | Enables |
 |---|---|
 | `matugen` + `hyprpaper` | Wallpaper switcher + Material You theme generation |
+| `magick` (imagemagick) | Auto light/dark mode from wallpaper (else defaults dark) |
 | `cava` | Audio visualizer |
 | `brightnessctl` | Brightness control |
 | `secret-tool` (libsecret) | Keyring for tokens (e.g. YT Music) |

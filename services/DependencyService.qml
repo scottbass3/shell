@@ -13,6 +13,7 @@ QtObject {
     readonly property var deps: ({
         "cava":               { bin: "cava",                pkg: "cava",                 desc: "Audio visualizer" },
         "matugen":            { bin: "matugen",             pkg: "matugen (AUR)",        desc: "Wallpaper-based theming" },
+        "magick":             { bin: "magick",              pkg: "imagemagick",          desc: "Auto light/dark from wallpaper" },
         "secret-tool":        { bin: "secret-tool",         pkg: "libsecret",            desc: "Keyring (tokens, CalDAV)" },
         "brightnessctl":      { bin: "brightnessctl",       pkg: "brightnessctl",        desc: "Brightness control" },
         "qt6-websockets":     { qml: "QtWebSockets",        pkg: "qt6-websockets",       desc: "YouTube Music companion (realtime)" },

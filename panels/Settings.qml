@@ -88,6 +88,36 @@ PanelWindow {
         _trayEditIdx = -1
     }
 
+    // Custom tools: [{name, icon (glyph), command}] — rendered in the rail.
+    readonly property var _toolCustomList: SettingsService.get("tools.custom", [])
+    property int _toolEditIdx: -1
+    function _toolCustom() { return SettingsService.get("tools.custom", []) }
+    function _toolCustomAdd() {
+        let a = _toolCustom().slice()
+        a.push({ name: "Tool", icon: "󰘔", command: "" })
+        SettingsService.set("tools.custom", a)
+        _toolEditIdx = a.length - 1
+    }
+    function _toolCustomSet(i, field, val) {
+        let a = _toolCustom().slice()
+        if (i < 0 || i >= a.length) return
+        let e = Object.assign({}, a[i]); e[field] = val; a[i] = e
+        SettingsService.set("tools.custom", a)
+    }
+    function _toolCustomRemove(i) {
+        let a = _toolCustom().slice()
+        if (i < 0 || i >= a.length) return
+        a.splice(i, 1)
+        SettingsService.set("tools.custom", a)
+        _toolEditIdx = -1
+    }
+    // Curated glyph palette (Material Design Icons / nerd font) for the picker.
+    readonly property var _toolIcons: [
+        "󰆍","󰉋","󰈔","󰏫","󰆼","󰊢","󰃤","󰖟","󰝚","󰕧","󰄀","󰻃","󰋩","󰡨","󰒓","󰪚",
+        "󰃭","󰇮","󰭹","󰇚","󰍉","󰩹","󰋊","󰂯","󰍹","󰌌","󰸌","󰊗","󰠮","󰥔","󰅟","󰒃",
+        "󰋜","󰖷","󰓎","󰣐","󰀻","󰘔"
+    ]
+
     // Theme name-entry flow: "" | "new" | "duplicate" | "rename"
     property string _themeAction: ""
     function _confirmTheme(name) {
@@ -668,15 +698,128 @@ PanelWindow {
                         spacing: 6
                         SettingSection { text: "Tools toolbar" }
                         SettingToggle { label: "Enable toolbar"; path: "tools.enabled"; def: true }
-                        SettingSection { text: "Tools" }
-                        SettingToggle { label: "File explorer"; dep: "superfile"; path: "tools.files"; def: true }
-                        SettingToggle { label: "Screen recorder"; dep: "wf-recorder"; path: "tools.recorder"; def: true }
-                        SettingToggle { label: "Docker explorer"; dep: "beacon"; path: "tools.docker"; def: true }
-                        SettingToggle { label: "Wallpaper picker"; dep: "matugen"; path: "tools.wallpaper"; def: true }
+                        SettingToggle { label: "Wallpaper picker"; sub: "Built-in background/theme tool"; dep: "matugen"; path: "tools.wallpaper"; def: true }
 
-                        SettingSection { text: "Screen recorder" }
-                        SettingText   { label: "Output folder"; path: "tools.recorder.dir"; def: ""; placeholder: "~/Videos" }
-                        SettingToggle { label: "Capture audio"; path: "tools.recorder.audio"; def: false }
+                        SettingSection { text: "Custom tools"; Layout.topMargin: 12 }
+                        Text {
+                            Layout.fillWidth: true; Layout.bottomMargin: 2
+                            text: "Add your own rail buttons — each runs a command. Examples: file manager (kitty -e yazi), screen record (wf-recorder -g \"$(slurp)\" -f ~/rec.mp4)."
+                            wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
+                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                        }
+                        Repeater {
+                            model: root._toolCustomList
+                            delegate: Rectangle {
+                                id: _tc
+                                required property var modelData
+                                required property int index
+                                readonly property bool editing: root._toolEditIdx === index
+
+                                Layout.fillWidth: true
+                                Layout.topMargin: 6
+                                radius: ThemeManager.panelRadius
+                                color: ThemeManager.surfaceContainerHigh
+                                border.width: 1; border.color: editing ? ThemeManager.primary : ThemeManager.outlineVariant
+                                implicitHeight: (editing ? _tcCol.implicitHeight : _tcRow.implicitHeight) + 24
+
+                                // Collapsed summary
+                                RowLayout {
+                                    id: _tcRow
+                                    visible: !_tc.editing
+                                    anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; leftMargin: 12; rightMargin: 12 }
+                                    spacing: 10
+                                    Text {
+                                        text: _tc.modelData.icon || "󰘔"; color: ThemeManager.onSurface
+                                        font.family: ThemeManager.fontFamily; font.pixelSize: 22
+                                        Layout.preferredWidth: 28; horizontalAlignment: Text.AlignHCenter
+                                    }
+                                    ColumnLayout {
+                                        Layout.fillWidth: true; spacing: 1
+                                        Text {
+                                            Layout.fillWidth: true; elide: Text.ElideRight
+                                            text: (_tc.modelData.name && _tc.modelData.name !== "") ? _tc.modelData.name : "Unnamed"
+                                            color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm; font.bold: true
+                                        }
+                                        Text {
+                                            Layout.fillWidth: true; elide: Text.ElideRight
+                                            text: (_tc.modelData.command && _tc.modelData.command !== "") ? _tc.modelData.command : "no command"
+                                            color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs ?? 11
+                                        }
+                                    }
+                                    SettingBtn { label: "Edit"; onClicked: root._toolEditIdx = _tc.index }
+                                    SettingBtn { label: "Remove"; danger: true; onClicked: root._toolCustomRemove(_tc.index) }
+                                }
+
+                                // Expanded editor
+                                ColumnLayout {
+                                    id: _tcCol
+                                    visible: _tc.editing
+                                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
+                                    spacing: 10
+
+                                    ColumnLayout {
+                                        Layout.fillWidth: true; spacing: 2
+                                        Text { text: "Name (tooltip)"; color: ThemeManager.onSurfaceVariant
+                                               font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs ?? 11 }
+                                        TextField {
+                                            Layout.fillWidth: true; implicitHeight: 28
+                                            text: _tc.modelData.name ?? ""; placeholderText: "e.g. Files"
+                                            color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                            leftPadding: 8; rightPadding: 8
+                                            background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainer
+                                                                    border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
+                                            onEditingFinished: if (text !== (_tc.modelData.name ?? "")) root._toolCustomSet(_tc.index, "name", text)
+                                        }
+                                    }
+                                    ColumnLayout {
+                                        Layout.fillWidth: true; spacing: 2
+                                        Text { text: "Command"; color: ThemeManager.onSurfaceVariant
+                                               font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs ?? 11 }
+                                        TextField {
+                                            Layout.fillWidth: true; implicitHeight: 28
+                                            text: _tc.modelData.command ?? ""; placeholderText: "kitty -e yazi"
+                                            color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                            leftPadding: 8; rightPadding: 8
+                                            background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainer
+                                                                    border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
+                                            onEditingFinished: if (text !== (_tc.modelData.command ?? "")) root._toolCustomSet(_tc.index, "command", text)
+                                        }
+                                    }
+                                    // Icon picker — grid of glyphs
+                                    ColumnLayout {
+                                        Layout.fillWidth: true; spacing: 4
+                                        Text { text: "Icon"; color: ThemeManager.onSurfaceVariant
+                                               font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs ?? 11 }
+                                        Flow {
+                                            Layout.fillWidth: true; spacing: 4
+                                            Repeater {
+                                                model: root._toolIcons
+                                                delegate: Rectangle {
+                                                    required property var modelData
+                                                    readonly property bool sel: (_tc.modelData.icon || "") === modelData
+                                                    width: 34; height: 34; radius: 8
+                                                    color: sel ? Qt.rgba(ThemeManager.primary.r, ThemeManager.primary.g, ThemeManager.primary.b, 0.22)
+                                                               : ThemeManager.surfaceContainer
+                                                    border.width: 1; border.color: sel ? ThemeManager.primary : ThemeManager.outlineVariant
+                                                    Text { anchors.centerIn: parent; text: modelData
+                                                           color: parent.sel ? ThemeManager.primary : ThemeManager.onSurfaceVariant
+                                                           font.family: ThemeManager.fontFamily; font.pixelSize: 20 }
+                                                    TapHandler { onTapped: root._toolCustomSet(_tc.index, "icon", modelData) }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    RowLayout {
+                                        Layout.fillWidth: true; Layout.topMargin: 2
+                                        SettingBtn { label: "Remove"; danger: true; onClicked: root._toolCustomRemove(_tc.index) }
+                                        Item { Layout.fillWidth: true }
+                                        SettingBtn { label: "Validate"; onClicked: root._toolEditIdx = -1 }
+                                    }
+                                }
+                            }
+                        }
+                        SettingBtn { Layout.topMargin: 8; label: "+  Add tool"; onClicked: root._toolCustomAdd() }
                     }
 
                     // Dependencies --------------------------------------------------

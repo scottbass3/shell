@@ -1,10 +1,13 @@
 pragma Singleton
 import QtQuick
-import Quickshell.Io
+import Quickshell
 import "."
 import "../theme"
 
 // State + keyboard navigation for the right-edge tools toolbar.
+// The rail is user-defined custom tools (tools.custom = [{name, icon, command}])
+// followed by the built-in wallpaper/background picker. Selection 0..N-1 are the
+// custom tools; index `wpIndex` (== custom count) is the wallpaper button.
 QtObject {
     id: root
 
@@ -12,16 +15,22 @@ QtObject {
     property bool wpOpen:     false   // wallpaper picker open
     property int  selected:   0       // highlighted rail button (keyboard)
     property int  wpSelected: 0       // highlighted wallpaper (keyboard)
-    readonly property int count: 4    // rail buttons
+
+    // User tools + the built-in wallpaper button.
+    readonly property var  customTools: SettingsService.get("tools.custom", [])
+    readonly property bool wpEnabled:   SettingsService.get("tools.wallpaper", true)
+                                        && DependencyService.available("matugen")
+    readonly property int  wpIndex: customTools.length
+    readonly property int  count:   customTools.length + (wpEnabled ? 1 : 0)
+
+    function _launch(cmd) {
+        if (cmd && ("" + cmd).trim() !== "") Quickshell.execDetached(["sh", "-c", "" + cmd])
+    }
 
     // Wallpaper preview/revert bookkeeping
     property string _origWp:    ""
     property string _origTheme: ""
     property bool   _committing: false
-
-    // ── Launchers ──────────────────────────────────────────────────────────--
-    property Process _files:  Process { command: ["kitty", "--class", "superfile", "-e", "spf"] }
-    property Process _beacon: Process { command: ["kitty", "--class", "beacon", "-e", "beacon"] }
 
     property string _prevWin: ""   // window focused before the rail grabbed keys
 
@@ -66,11 +75,11 @@ QtObject {
     // Up / Down move the selection (rail, or wallpaper list when picker open)
     function up() {
         if (wpOpen) { const n = WallpaperService.wallpapers.length; if (n) wpSelected = (wpSelected - 1 + n) % n }
-        else selected = (selected - 1 + count) % count
+        else if (count > 0) selected = (selected - 1 + count) % count
     }
     function down() {
         if (wpOpen) { const n = WallpaperService.wallpapers.length; if (n) wpSelected = (wpSelected + 1) % n }
-        else selected = (selected + 1) % count
+        else if (count > 0) selected = (selected + 1) % count
     }
 
     // Left / Enter → enter / activate / confirm
@@ -79,11 +88,11 @@ QtObject {
             commitWallpaper(WallpaperService.wallpapers[wpSelected])
             return
         }
-        switch (selected) {
-            case 0: _files.running = true;  close(); break
-            case 1: ScreenRecorderService.toggle(); close(); break   // close so slurp overlay gets input
-            case 2: _beacon.running = true; close(); break
-            case 3: wpOpen = true; break                    // onWpOpenChanged sets up preview
+        if (selected < customTools.length) {
+            _launch(customTools[selected].command)
+            close()
+        } else if (wpEnabled && selected === wpIndex) {
+            wpOpen = true                                   // onWpOpenChanged sets up preview
         }
     }
 

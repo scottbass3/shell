@@ -60,7 +60,7 @@ chmod +x launch.sh scripts/hypr/*.sh 2>/dev/null || true
 
 # ── Optional runtime dependency report ───────────────────────────────────────
 say "Optional runtime dependencies (features light up when present):"
-for d in matugen cava brightnessctl wf-recorder slurp secret-tool superfile beacon; do
+for d in matugen cava brightnessctl secret-tool; do
     if need "$d"; then printf '   \033[32m✓\033[0m %s\n' "$d"
     else                printf '   \033[33m–\033[0m %s\n' "$d"; fi
 done

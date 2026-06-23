@@ -183,10 +183,6 @@ PanelWindow {
         else _toolsCollapse.restart()
     }
 
-    // Tool launchers
-    property Process _toolFiles:  Process { command: ["kitty", "--class", "superfile", "-e", "spf"] }
-    property Process _toolBeacon: Process { command: ["kitty", "--class", "beacon", "-e", "beacon"] }
-
     // ── Input mask ────────────────────────────────────────────────────────────
     mask: Region {
         Region { x: 0; y: 0; width: root.width; height: ThemeManager.barHeight }
@@ -576,26 +572,22 @@ PanelWindow {
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: 160 } }
 
-            ToolBtn {
-                visible: SettingsService.get("tools.files", true) && DependencyService.available("superfile")
-                icon: "󰉋"; kbdSel: ToolsService.open && ToolsService.selected === 0
-                onClicked: { root._toolFiles.running = true; ToolsService.close(); root._toolsHovered = false }
+            // User-defined custom tools (Settings → Tools)
+            Repeater {
+                model: ToolsService.customTools
+                delegate: ToolBtn {
+                    required property var modelData
+                    required property int index
+                    icon:   modelData.icon || "󰘔"
+                    kbdSel: ToolsService.open && ToolsService.selected === index
+                    onClicked: { ToolsService._launch(modelData.command); ToolsService.close(); root._toolsHovered = false }
+                }
             }
+            // Built-in wallpaper / background picker
             ToolBtn {
-                visible: SettingsService.get("tools.recorder", true) && DependencyService.available("wf-recorder")
-                icon: "󰻃"; active: ScreenRecorderService.recording
-                kbdSel: ToolsService.open && ToolsService.selected === 1
-                onClicked: { ScreenRecorderService.toggle(); ToolsService.close(); root._toolsHovered = false }
-            }
-            ToolBtn {
-                visible: SettingsService.get("tools.docker", true) && DependencyService.available("beacon")
-                icon: "󰡨"; kbdSel: ToolsService.open && ToolsService.selected === 2
-                onClicked: { root._toolBeacon.running = true; ToolsService.close(); root._toolsHovered = false }
-            }
-            ToolBtn {
-                visible: SettingsService.get("tools.wallpaper", true) && DependencyService.available("matugen")
+                visible: ToolsService.wpEnabled
                 icon: "󰸉"; active: root._toolsWpOpen
-                kbdSel: ToolsService.open && ToolsService.selected === 3
+                kbdSel: ToolsService.open && ToolsService.selected === ToolsService.wpIndex
                 onClicked: { if (ToolsService.wpOpen) ToolsService.wpOpen = false; else { ToolsService.wpOpen = true; WallpaperService.refresh() } }
             }
         }

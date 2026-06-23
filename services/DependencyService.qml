@@ -11,11 +11,7 @@ QtObject {
     // name → { bin, pkg (install hint), desc }
     readonly property var deps: ({
         "cava":         { bin: "cava",         pkg: "cava",          desc: "Audio visualizer" },
-        "wf-recorder":  { bin: "wf-recorder",  pkg: "wf-recorder",   desc: "Screen recording" },
-        "slurp":        { bin: "slurp",        pkg: "slurp",         desc: "Region select (recorder/screenshot)" },
         "matugen":      { bin: "matugen",      pkg: "matugen (AUR)", desc: "Wallpaper-based theming" },
-        "superfile":    { bin: "spf",          pkg: "superfile",     desc: "File explorer tool" },
-        "beacon":       { bin: "beacon",       pkg: "beacon",        desc: "Docker repo explorer" },
         "secret-tool":  { bin: "secret-tool",  pkg: "libsecret",     desc: "Keyring (tokens, CalDAV)" },
         "brightnessctl":{ bin: "brightnessctl",pkg: "brightnessctl", desc: "Brightness control" }
     })

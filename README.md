@@ -28,8 +28,9 @@ in QML, with liquid SDF panel corners that merge into a rounded screen frame.
   visualizer, weather, and a settings shortcut.
 - **System tray** — per-app hide, left-click to toggle a special workspace, and
   **custom entries** to pin non-SNI apps (run a command or toggle a workspace).
-- **Tools toolbar** — opt-in dock of utilities (file explorer, Docker explorer,
-  screen recorder, …), each individually toggleable and dependency-checked.
+- **Tools toolbar** — opt-in right-edge dock of **user-defined** tools: add your
+  own buttons (name + command + icon from a picker) for anything you launch.
+  Includes a built-in wallpaper / theme picker.
 - **Lock screen** — session lock that survives shell hot-reload.
 - **Settings app** (`SUPER+I`) — live, in-app configuration:
   - **Appearance modes**: frame / top-bar-only / floating islands, with live
@@ -65,9 +66,12 @@ Dependencies shows what's missing.
 | `matugen` | Wallpaper → Material You theme generation |
 | `cava` | Audio visualizer |
 | `brightnessctl` | Brightness control |
-| `wf-recorder` + `slurp` | Screen recording |
 | `secret-tool` (libsecret) | Keyring for tokens (e.g. YT Music) |
-| `superfile`, `beacon` | File / Docker explorer tools |
+
+The tools toolbar is **user-defined**: add your own buttons in Settings → Tools
+(name + command + icon), so anything you'd launch — a file manager, screen
+recorder, Docker UI — is your choice, not a bundled dependency. The wallpaper /
+theme picker is the one built-in tool (uses `matugen`).
 
 Media (play/pause/next, metadata) uses Quickshell's native MPRIS — no
 `playerctl` needed. The optional YouTube Music companion talks to the

@@ -16,15 +16,46 @@ Item {
     readonly property bool active: PopoutService.currentName === "network"
     onActiveChanged: if (active) _rescan()
 
+    // Warm the AP cache once at startup so the very first open paints instantly
+    // instead of waiting on a cold radio scan.
+    Component.onCompleted: _rescan()
+
     // ── nmcli-backed state ────────────────────────────────────────────────────
     property bool wifiEnabled: false
     property var  wifiNetworks: []   // [{ ssid, signal, active }]
     property var  vpnList:      []   // [{ name, active }]
+    property bool scanning:     false
 
     function _rescan() {
         _wifiState.running = true
-        _wifiScan.running  = true
+        _wifiScan.running  = true   // instant cached list (--rescan no)
+        _wifiRescan.running = true  // background radio rescan, refreshes when done
         _vpnScan.running   = true
+        scanning = true
+    }
+
+    // Shared parser for both the cached and rescanned `nmcli ... wifi list`.
+    // Merge by SSID across BSSIDs: keep max signal, OR the in-use flag.
+    function _parseWifi(text) {
+        const byId = {}
+        for (const ln of text.trim().split("\n")) {
+            if (!ln) continue
+            const f = ln.split(":")
+            const ssid = f.slice(2).join(":")
+            if (!ssid) continue
+            const sig = parseInt(f[1]) || 0
+            const act = f[0] === "*"
+            if (byId[ssid]) {
+                byId[ssid].signal = Math.max(byId[ssid].signal, sig)
+                byId[ssid].active = byId[ssid].active || act
+            } else {
+                byId[ssid] = { ssid: ssid, signal: sig, active: act }
+            }
+        }
+        const rows = Object.keys(byId).map(k => byId[k])
+        rows.sort((a, b) => (b.active - a.active) || (b.signal - a.signal))
+        root.wifiNetworks = rows
+        root.scanning = false
     }
 
     // Run an nmcli action then re-scan shortly after.
@@ -44,32 +75,17 @@ Item {
         running: false
         stdout: StdioCollector { onStreamFinished: root.wifiEnabled = text.trim() === "enabled" }
     }
+    // Cached list — returns immediately without forcing a radio scan.
     property Process _wifiScan: Process {
-        command: ["sh", "-c", "nmcli -t -f IN-USE,SIGNAL,SSID device wifi list 2>/dev/null"]
+        command: ["sh", "-c", "nmcli -t -f IN-USE,SIGNAL,SSID device wifi list --rescan no 2>/dev/null"]
         running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                // Merge by SSID across BSSIDs: keep max signal, OR the in-use flag.
-                const byId = {}
-                for (const ln of text.trim().split("\n")) {
-                    if (!ln) continue
-                    const f = ln.split(":")
-                    const ssid = f.slice(2).join(":")
-                    if (!ssid) continue
-                    const sig = parseInt(f[1]) || 0
-                    const act = f[0] === "*"
-                    if (byId[ssid]) {
-                        byId[ssid].signal = Math.max(byId[ssid].signal, sig)
-                        byId[ssid].active = byId[ssid].active || act
-                    } else {
-                        byId[ssid] = { ssid: ssid, signal: sig, active: act }
-                    }
-                }
-                const rows = Object.keys(byId).map(k => byId[k])
-                rows.sort((a, b) => (b.active - a.active) || (b.signal - a.signal))
-                root.wifiNetworks = rows
-            }
-        }
+        stdout: StdioCollector { onStreamFinished: root._parseWifi(text) }
+    }
+    // Fresh radio rescan — slower, refreshes the list once it completes.
+    property Process _wifiRescan: Process {
+        command: ["sh", "-c", "nmcli -t -f IN-USE,SIGNAL,SSID device wifi list --rescan yes 2>/dev/null"]
+        running: false
+        stdout: StdioCollector { onStreamFinished: root._parseWifi(text) }
     }
     property Process _vpnScan: Process {
         command: ["sh", "-c", "nmcli -t -f NAME,TYPE,STATE connection show 2>/dev/null"]
@@ -119,6 +135,14 @@ Item {
             Text {
                 visible: !root.wifiEnabled
                 text: "Wi-Fi off"
+                color: ThemeManager.onSurfaceVariant
+                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                opacity: 0.6
+                Layout.topMargin: 4
+            }
+            Text {
+                visible: root.wifiEnabled && root.scanning && root.wifiNetworks.length === 0
+                text: "Scanning…"
                 color: ThemeManager.onSurfaceVariant
                 font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
                 opacity: 0.6

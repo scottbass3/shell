@@ -1,0 +1,5 @@
+[config]
+
+[templates.quickshell]
+input_path  = "~/.config/quickshell/theme/matugen/quickshell.tera"
+output_path = "~/.config/quickshell/theme/generated/wallpaper.json"

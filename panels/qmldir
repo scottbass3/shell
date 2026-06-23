@@ -1,0 +1,9 @@
+NotificationCenter 1.0 NotificationCenter.qml
+Dashboard         1.0 Dashboard.qml
+ToastPopup        1.0 ToastPopup.qml
+AudioPanel        1.0 AudioPanel.qml
+PowerPanel        1.0 PowerPanel.qml
+PowerProfilePanel 1.0 PowerProfilePanel.qml
+TrayMenuPanel     1.0 TrayMenuPanel.qml
+Launcher          1.0 Launcher.qml
+Settings          1.0 Settings.qml

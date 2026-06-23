@@ -1,0 +1,43 @@
+{
+  "id": "wallpaper",
+  "name": "Wallpaper",
+  "dark": {{ is_dark_mode }},
+  "palette": {
+    "primary":   "{{ colors.primary.default.hex }}",
+    "secondary": "{{ colors.secondary.default.hex }}",
+    "tertiary":  "{{ colors.tertiary.default.hex }}",
+    "error":     "{{ colors.error.default.hex }}",
+    "surface":   "{{ colors.surface.default.hex }}",
+    "background":"{{ colors.background.default.hex }}"
+  },
+  "roles": {
+    "primary":              "{{ colors.primary.default.hex }}",
+    "onPrimary":            "{{ colors.on_primary.default.hex }}",
+    "primaryContainer":     "{{ colors.primary_container.default.hex }}",
+    "onPrimaryContainer":   "{{ colors.on_primary_container.default.hex }}",
+    "secondary":            "{{ colors.secondary.default.hex }}",
+    "onSecondary":          "{{ colors.on_secondary.default.hex }}",
+    "secondaryContainer":   "{{ colors.secondary_container.default.hex }}",
+    "onSecondaryContainer": "{{ colors.on_secondary_container.default.hex }}",
+    "tertiary":             "{{ colors.tertiary.default.hex }}",
+    "onTertiary":           "{{ colors.on_tertiary.default.hex }}",
+    "surface":              "{{ colors.surface.default.hex }}",
+    "surfaceVariant":       "{{ colors.surface_variant.default.hex }}",
+    "surfaceContainer":     "{{ colors.surface_container.default.hex }}",
+    "surfaceContainerHigh": "{{ colors.surface_container_high.default.hex }}",
+    "surfaceContainerLow":  "{{ colors.surface_container_low.default.hex }}",
+    "onSurface":            "{{ colors.on_surface.default.hex }}",
+    "onSurfaceVariant":     "{{ colors.on_surface_variant.default.hex }}",
+    "background":           "{{ colors.background.default.hex }}",
+    "onBackground":         "{{ colors.on_background.default.hex }}",
+    "error":                "{{ colors.error.default.hex }}",
+    "onError":              "{{ colors.on_error.default.hex }}",
+    "outline":              "{{ colors.outline.default.hex }}",
+    "outlineVariant":       "{{ colors.outline_variant.default.hex }}",
+    "inverseSurface":       "{{ colors.inverse_surface.default.hex }}",
+    "inverseOnSurface":     "{{ colors.inverse_on_surface.default.hex }}",
+    "inversePrimary":       "{{ colors.inverse_primary.default.hex }}",
+    "shadow":               "{{ colors.shadow.default.hex }}",
+    "scrim":                "{{ colors.scrim.default.hex }}"
+  }
+}

@@ -1,0 +1,23 @@
+# ── Personal runtime state (never publish) ───────────────────────────────────
+/settings.json
+/theme/active.json
+/launcher/usage.json
+/launcher/pinned.json
+/theme/custom/*
+!/theme/custom/.gitkeep
+/theme/exports/*
+!/theme/exports/.gitkeep
+/theme/generated/*
+!/theme/generated/.gitkeep
+
+# ── Build artifacts (rebuilt by install.sh) ──────────────────────────────────
+/Caelestia/
+/blobs-plugin/build/
+
+# ── Node bridge dependencies (npm install) ───────────────────────────────────
+/scripts/ytmd-bridge/node_modules/
+
+# ── Editor / OS noise ────────────────────────────────────────────────────────
+*.swp
+*~
+.DS_Store

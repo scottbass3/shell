@@ -1,5 +1,6 @@
 # ── Personal runtime state (never publish) ───────────────────────────────────
 /settings.json
+/hypr/binds.generated.lua
 /theme/active.json
 /launcher/usage.json
 /launcher/pinned.json

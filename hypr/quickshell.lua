@@ -40,14 +40,12 @@ end)
 -- Keybindings
 ------------------------------------------------------------------------------
 
--- Core shell surfaces
-hl.bind(mainMod .. " + R", hl.dsp.exec_cmd("qs ipc call launcher toggle")) -- app launcher
-hl.bind(mainMod .. " + I", hl.dsp.exec_cmd("qs ipc call settings toggle"))  -- settings
-hl.bind(mainMod .. " + L", hl.dsp.exec_cmd("qs ipc call lock lock"))        -- lock screen
-hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(scripts .. "/tools-toggle.sh"))  -- tools toolbar
-
--- Scratchpad: close any open special workspace, else open special:magic
-hl.bind(mainMod .. " + S", hl.dsp.exec_cmd(scripts .. "/special-toggle.sh"))
+-- Shell action keybinds (launcher, settings, lock, tools, scratchpad) are
+-- configured in-app under Settings → Keybindings and written to
+-- hypr/binds.generated.lua. They are UNBOUND by default — until you set them,
+-- reach Settings via the bar launcher button or the dashboard gear icon.
+local genBinds = home .. "/.config/quickshell/hypr/binds.generated.lua"
+if io.open(genBinds) then loadfile(genBinds)() end
 
 -- Per-monitor workspaces (optional): Super+N switches to workspace N on the
 -- FOCUSED monitor; Super+Shift+N moves the active window there. Each monitor

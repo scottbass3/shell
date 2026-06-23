@@ -21,3 +21,4 @@ singleton SettingsService    1.0 SettingsService.qml
 singleton DependencyService  1.0 DependencyService.qml
 singleton SettingsUi         1.0 SettingsUi.qml
 singleton Paths               1.0 Paths.qml
+singleton BindingService     1.0 BindingService.qml

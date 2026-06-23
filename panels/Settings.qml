@@ -101,6 +101,7 @@ PanelWindow {
     readonly property var _cats: [
         { id: "appearance",   label: "Appearance",   icon: "󰉼" },
         { id: "bar",          label: "Bar",          icon: "󰍜" },
+        { id: "keybindings",  label: "Keybindings",  icon: "󰌌" },
         { id: "media",        label: "Media",        icon: "󰝚" },
         { id: "notifications",label: "Notifications",icon: "󰂚" },
         { id: "weather",      label: "Weather",      icon: "󰖐" },
@@ -391,6 +392,51 @@ PanelWindow {
                         SettingText { label: "Location"; sub: "City or lat,lon — empty = auto by IP"; path: "weather.location"; def: "Dijon"; placeholder: "auto" }
                         SettingToggle { label: "Fahrenheit"; sub: "Off = Celsius"; path: "weather.fahrenheit"; def: false }
                         SettingSlider { label: "Refresh interval"; path: "weather.refreshMin"; def: 30; from: 5; to: 120; unit: "min" }
+                    }
+
+                    // Keybindings ---------------------------------------------------
+                    ColumnLayout {
+                        visible: SettingsUi.category === "keybindings"
+                        Layout.fillWidth: true
+                        Layout.margins: 20
+                        spacing: 6
+                        SettingSection { text: "Keybindings" }
+                        Text {
+                            Layout.fillWidth: true; Layout.bottomMargin: 4
+                            text: "Shortcuts for the shell's actions. Unbound by default. Type a Hyprland combo, e.g. \"SUPER + R\" or \"SUPER + SHIFT + L\". Saving reloads Hyprland to apply. Requires hypr/quickshell.lua (Lua config)."
+                            wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
+                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                        }
+                        Repeater {
+                            model: BindingService.actions
+                            delegate: RowLayout {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                spacing: 10
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: modelData.label
+                                    color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                    elide: Text.ElideRight
+                                }
+                                TextField {
+                                    id: _bindField
+                                    Layout.preferredWidth: 180; implicitHeight: 28
+                                    text: SettingsService.get("binds." + modelData.key, "")
+                                    placeholderText: "Unbound"
+                                    color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                    leftPadding: 8; rightPadding: 8
+                                    background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
+                                                            border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
+                                    onEditingFinished: if (text !== SettingsService.get("binds." + modelData.key, "")) BindingService.setCombo(modelData.key, text)
+                                }
+                                SettingBtn {
+                                    label: "Clear"; danger: true
+                                    enabled: SettingsService.get("binds." + modelData.key, "") !== ""
+                                    onClicked: { _bindField.text = ""; BindingService.setCombo(modelData.key, "") }
+                                }
+                            }
+                        }
                     }
 
                     // Tray ----------------------------------------------------------

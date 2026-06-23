@@ -38,6 +38,8 @@ in QML, with liquid SDF panel corners that merge into a rounded screen frame.
     rename / delete / import / export of custom themes; optional
     `matugen` wallpaper-based generation.
   - Configurable bar widgets, tray, tools, weather, and dependency overview.
+  - **Keybindings**: assign Hyprland shortcuts for the shell's actions in-app
+    (unbound by default; applied live via a generated Lua bind file).
 - **Liquid panel corners** — panels are SDF metaballs that smooth-merge into a
   rounded screen frame as they deploy.
 - **Per-monitor workspaces** — every screen gets its own 1–10 range, with
@@ -99,19 +101,18 @@ Add to the **end** of your `hyprland.lua`:
 loadfile(os.getenv("HOME") .. "/.config/quickshell/hypr/quickshell.lua")()
 ```
 
-This sets `misc.allow_session_lock_restore`, autostarts the shell, and binds:
+This sets `misc.allow_session_lock_restore`, autostarts the shell, binds the
+per-monitor workspaces (`SUPER + 1..0`, Shift = move window), and sources the
+generated shell-action binds.
 
-| Key | Action |
-|---|---|
-| `SUPER + R` | App launcher |
-| `SUPER + I` | Settings |
-| `SUPER + L` | Lock screen |
-| `SUPER + E` | Tools toolbar |
-| `SUPER + S` | Toggle scratchpad / special workspace |
-| `SUPER + 1..0` | Per-monitor workspace switch (Shift = move window) |
+**Shell-action shortcuts** (app launcher, settings, lock, tools, scratchpad) are
+**unbound by default**. Set them in **Settings → Keybindings** — each saved combo
+is written to `hypr/binds.generated.lua` and applied with `hyprctl reload`. Until
+you bind anything, open the launcher from the bar button and Settings from the
+dashboard gear icon.
 
-Edit it to taste — the special-workspace window rules at the bottom are
-commented examples; match them to your apps and to Settings → Tray.
+Edit `hypr/quickshell.lua` to taste — the special-workspace window rules at the
+bottom are commented examples; match them to your apps and to Settings → Tray.
 
 ## Running manually
 

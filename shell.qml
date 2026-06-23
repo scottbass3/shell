@@ -82,16 +82,13 @@ ShellRoot {
     }
 
     // Scratchpad:  qs ipc call scratchpad toggle
-    // Closes the focused monitor's open special workspace, else opens
-    // special:magic. Replaces scripts/hypr/special-toggle.sh.
+    // Toggles the magic scratchpad. toggle_special is itself a toggle, so this
+    // needs no current-state read (the monitor IPC object's specialWorkspace is
+    // not refreshed on special-ws changes, so reading it was unreliable).
     IpcHandler {
         target: "scratchpad"
         function toggle(): void {
-            const m = Hyprland.focusedMonitor
-            const o = m ? m.lastIpcObject : null
-            const sw = (o && o.specialWorkspace) ? (o.specialWorkspace.name || "") : ""
-            const ws = sw !== "" ? sw.replace(/^special:/, "") : "magic"
-            Hyprland.dispatch('hl.dsp.workspace.toggle_special("' + ws + '")')
+            Hyprland.dispatch('hl.dsp.workspace.toggle_special("magic")')
         }
     }
 

@@ -48,13 +48,22 @@ QtObject {
     // without re-running autostart.
     property Process _reload: Process { command: ["hyprctl", "reload"] }
 
+    property bool _pendingReload: false
     property Process _writer: Process {
-        onExited: { root._reload.running = false; root._reload.running = true }
+        onExited: if (root._pendingReload) { root._reload.running = false; root._reload.running = true }
     }
 
-    function apply() {
+    // doReload=true (a user edit) reloads Hyprland so the bind applies now;
+    // false (startup sync) just refreshes the file for the next Hyprland start —
+    // the persisted file was already sourced when Hyprland launched.
+    function apply(doReload) {
+        _pendingReload = (doReload !== false)
         _writer.command = ["sh", "-c", 'printf "%s" "$2" > "$1"', "_", root._file, root._luaContent()]
         _writer.running = false
         _writer.running = true
     }
+
+    // Keep binds.generated.lua in sync with saved settings on every start, so
+    // combos set in a prior session (or before the file moved to state) exist.
+    Component.onCompleted: apply(false)
 }

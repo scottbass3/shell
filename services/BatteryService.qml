@@ -1,10 +1,10 @@
 pragma Singleton
 import QtQuick
-import Quickshell.Io
 import Quickshell.Services.UPower
+import "."
 
-// Watches the battery and emits desktop notifications (via notify-send, which
-// routes through our own NotificationServer → toast + notification center) on:
+// Watches the battery and emits shell-local notifications (in-shell toast +
+// notification center, via NotificationService — no notify-send/libnotify) on:
 //   • charger plugged / unplugged
 //   • low battery (crosses threshold while discharging)
 QtObject {
@@ -28,13 +28,8 @@ QtObject {
     property bool _ready:       false
     property bool _lowNotified: false
 
-    property Process _notifyProc: Process {}
-
     function _notify(title, body, icon, urgency) {
-        _notifyProc.running = false
-        _notifyProc.command = ["notify-send", "-a", "Battery",
-                               "-i", icon, "-u", urgency, title, body]
-        _notifyProc.running = true
+        NotificationService.notifyLocal("Battery", title, body, icon)
     }
 
     // ── Plug / unplug ─────────────────────────────────────────────────────────

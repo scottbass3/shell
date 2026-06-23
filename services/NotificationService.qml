@@ -107,6 +107,30 @@ QtObject {
         }
     }
 
+    // Emit a shell-local notification (no D-Bus / notify-send). Used for internal
+    // alerts like battery state. Builds a plain object shaped like a tracked
+    // notification so the toast + center render it the same way.
+    function notifyLocal(appName, summary, body, icon) {
+        const n = {
+            appName: appName || "", summary: summary || "", body: body || "",
+            appIcon: icon || "", image: "", actions: [], desktopEntry: "", tracked: true
+        }
+        notifList = [...notifList, n]
+        notifCount++
+        if (doNotDisturb) return
+        unreadCount++
+        const popoutOpen     = PopoutService.currentName === "notif"
+        const fullCenterOpen = centerOpen && !toastMode
+        if (popoutOpen || fullCenterOpen) return
+        let q = [..._toastEntries, { n: n, exp: Date.now() + _toastTTL }]
+        if (q.length > _toastMax) q = q.slice(q.length - _toastMax)
+        _toastEntries = q
+        toastMode    = true
+        centerScreen = null
+        centerOpen   = true
+        _toastTimer.restart()
+    }
+
     // Bell opened the center via popout — clear unread + dismiss any live toast
     function markRead() {
         unreadCount = 0

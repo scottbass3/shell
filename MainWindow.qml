@@ -158,10 +158,9 @@ PanelWindow {
         ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     // Hyprland doesn't auto-restore window keyboard focus after a layer releases
-    // its exclusive grab — re-assert focus on the active window when we close.
-    property Process _refocus: Process { command: [Paths.script("refocus-active.sh")] }
+    // its exclusive grab — re-assert focus on the previously focused window.
     on_ToolsKbdActiveChanged: if (!_toolsKbdActive) _refocusTimer.restart()
-    Timer { id: _refocusTimer; interval: 60; onTriggered: root._refocus.running = true }
+    Timer { id: _refocusTimer; interval: 60; onTriggered: FocusService.refocus(ToolsService._prevWin) }
 
     // Animated current width + height (notch nub ↔ rail), kept vertically centred
     property real _toolsW: _toolsShow ? _toolsRailW : _toolsNotchW

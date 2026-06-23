@@ -17,8 +17,8 @@ QtObject {
         { key: "launcher",   label: "App launcher",      cmd: "qs ipc call launcher toggle" },
         { key: "settings",   label: "Settings",          cmd: "qs ipc call settings toggle" },
         { key: "lock",       label: "Lock screen",       cmd: "qs ipc call lock lock" },
-        { key: "tools",      label: "Tools toolbar",     cmd: Paths.script("tools-toggle.sh") },
-        { key: "scratchpad", label: "Scratchpad toggle", cmd: Paths.script("special-toggle.sh") }
+        { key: "tools",      label: "Tools toolbar",     cmd: "qs ipc call tools toggle" },
+        { key: "scratchpad", label: "Scratchpad toggle", cmd: "qs ipc call scratchpad toggle" }
     ]
 
     readonly property string _file: Paths.state("binds.generated.lua")

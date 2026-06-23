@@ -17,7 +17,6 @@ QtObject {
         "node":         { bin: "node",         pkg: "nodejs",        desc: "YouTube Music companion bridge" },
         "superfile":    { bin: "spf",          pkg: "superfile",     desc: "File explorer tool" },
         "beacon":       { bin: "beacon",       pkg: "beacon",        desc: "Docker repo explorer" },
-        "jq":           { bin: "jq",           pkg: "jq",            desc: "Workspace / window helper scripts" },
         "secret-tool":  { bin: "secret-tool",  pkg: "libsecret",     desc: "Keyring (tokens, CalDAV)" },
         "brightnessctl":{ bin: "brightnessctl",pkg: "brightnessctl", desc: "Brightness control" }
     })

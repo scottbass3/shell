@@ -20,13 +20,14 @@ QtObject {
         return m?.name ?? ""
     }
 
+    property string _prevWin: ""   // window focused before our layer grabbed
+
     function show() {
         screenName = _focusedName()
         query = ""
         // Save the window focused before our layer grabs the keyboard, so we can
         // hand focus back on close.
-        _savePrev.running = false
-        _savePrev.running = true
+        _prevWin = FocusService.savePrev()
         open = true
     }
     function hide() {
@@ -38,15 +39,8 @@ QtObject {
 
     // ── Keyboard focus restore (Hyprland won't auto-restore after the layer
     //    releases its exclusive keyboard grab) ──────────────────────────────--
-    property Process _savePrev: Process {
-        command: ["sh", "-c",
-            "hyprctl activewindow -j | jq -r '.address // empty' > /tmp/qs-launcher-prevwin"]
-    }
-    property Process _refocus: Process {
-        command: [Paths.script("launcher-refocus.sh")]
-    }
     property Timer _refocusTimer: Timer {
         interval: 140
-        onTriggered: { root._refocus.running = false; root._refocus.running = true }
+        onTriggered: FocusService.refocus(root._prevWin)
     }
 }

@@ -67,7 +67,6 @@ Dependencies shows what's missing.
 | `brightnessctl` | Brightness control |
 | `wf-recorder` + `slurp` | Screen recording |
 | `secret-tool` (libsecret) | Keyring for tokens (e.g. YT Music) |
-| `jq` | Workspace / window helper scripts |
 | `superfile`, `beacon` | File / Docker explorer tools |
 
 Media (play/pause/next, metadata) uses Quickshell's native MPRIS — no

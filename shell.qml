@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 import "./theme"
 import "./bar"
 import "./panels"
@@ -56,6 +57,42 @@ ShellRoot {
         function toggle(): void { LauncherService.toggle() }
         function open():   void { LauncherService.show() }
         function close():  void { LauncherService.hide() }
+    }
+
+    // Per-monitor workspaces:  qs ipc call ws go <n> <switch|move>
+    // Monitor k owns workspaces k*10+1 .. k*10+10, so every screen has its own
+    // "1..10". switch uses the focused monitor; move uses the active window's
+    // monitor (keeps it on its own screen). Replaces scripts/hypr/ws.sh.
+    IpcHandler {
+        target: "ws"
+        function go(n: string, action: string): void {
+            const N = parseInt(n); if (isNaN(N)) return
+            const useWin = action === "move" && Hyprland.activeToplevel && Hyprland.activeToplevel.monitor
+            const mon = useWin ? Hyprland.activeToplevel.monitor : Hyprland.focusedMonitor
+            const monid   = mon ? mon.id   : 0
+            const monname = mon ? mon.name : ""
+            const ws = monid * 10 + N
+            // Pin the target workspace to its home monitor (fixes drift); harmless
+            // if it doesn't exist yet — focus/move below creates it correctly.
+            if (monname !== "")
+                Hyprland.dispatch('hl.dsp.workspace.move({workspace = "' + ws + '", monitor = "' + monname + '"})')
+            if (action === "move") Hyprland.dispatch('hl.dsp.window.move({workspace = ' + ws + '})')
+            else                   Hyprland.dispatch('hl.dsp.focus({workspace = ' + ws + '})')
+        }
+    }
+
+    // Scratchpad:  qs ipc call scratchpad toggle
+    // Closes the focused monitor's open special workspace, else opens
+    // special:magic. Replaces scripts/hypr/special-toggle.sh.
+    IpcHandler {
+        target: "scratchpad"
+        function toggle(): void {
+            const m = Hyprland.focusedMonitor
+            const o = m ? m.lastIpcObject : null
+            const sw = (o && o.specialWorkspace) ? (o.specialWorkspace.name || "") : ""
+            const ws = sw !== "" ? sw.replace(/^special:/, "") : "magic"
+            Hyprland.dispatch('hl.dsp.workspace.toggle_special("' + ws + '")')
+        }
     }
 
     // Settings window (centered modal) — one per screen, shows on focused one

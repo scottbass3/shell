@@ -23,8 +23,10 @@ QtObject {
     property Process _files:  Process { command: ["kitty", "--class", "superfile", "-e", "spf"] }
     property Process _beacon: Process { command: ["kitty", "--class", "beacon", "-e", "beacon"] }
 
+    property string _prevWin: ""   // window focused before the rail grabbed keys
+
     function toggle() { if (open || wpOpen) close(); else openKbd() }
-    function openKbd() { open = true; wpOpen = false; selected = 0 }
+    function openKbd() { _prevWin = FocusService.savePrev(); open = true; wpOpen = false; selected = 0 }
     function close()   { open = false; wpOpen = false }
 
     // ── Wallpaper preview lifecycle ───────────────────────────────────────────

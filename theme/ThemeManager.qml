@@ -136,21 +136,28 @@ QtObject {
         stdout: StdioCollector { onStreamFinished: root._parseScan(text) }
     }
     function refreshThemes() {
+        // Emit each theme as: 0x1F <slug> 0x1E <raw json> — parsed in QML (no jq).
         const d = _customDir.replace(/'/g, "'\\''")
         _scan.command = ["sh", "-c",
             "mkdir -p '" + d + "'; for f in '" + d + "'/*.json; do [ -e \"$f\" ] || continue; " +
-            "n=$(jq -r '.name // \"Theme\"' \"$f\" 2>/dev/null); dk=$(jq -r '.dark // true' \"$f\" 2>/dev/null); " +
-            "b=$(basename \"$f\" .json); printf '%s\\t%s\\t%s\\n' \"$b\" \"$n\" \"$dk\"; done"]
+            "b=$(basename \"$f\" .json); printf '\\037%s\\036' \"$b\"; cat \"$f\"; done"]
         _scan.running = true
     }
     function _parseScan(txt) {
         const out = []
-        const lines = ("" + txt).split("\n")
-        for (let i = 0; i < lines.length; i++) {
-            const t = lines[i]; if (!t.trim()) continue
-            const p = t.split("\t")
-            if (p.length < 2) continue
-            out.push({ id: "user:" + p[0], slug: p[0], name: p[1], dark: (p[2] || "true").trim() === "true", custom: true })
+        const recs = ("" + txt).split("")
+        for (let i = 0; i < recs.length; i++) {
+            const rec = recs[i]; if (!rec) continue
+            const sep = rec.indexOf("")
+            if (sep < 0) continue
+            const slug = rec.slice(0, sep)
+            let name = "Theme", dark = true
+            try {
+                const o = JSON.parse(rec.slice(sep + 1))
+                if (o.name) name = o.name
+                if (o.dark !== undefined) dark = !!o.dark
+            } catch (e) { continue }
+            out.push({ id: "user:" + slug, slug: slug, name: name, dark: dark, custom: true })
         }
         userThemes = out
     }
@@ -195,23 +202,34 @@ QtObject {
 
     // Duplicate an existing theme (preset or user) into a new user theme.
     function duplicateTheme(srcId, name) {
-        const slug = _slugify(name)
-        const src = _themeFilePath(srcId).replace(/'/g, "'\\''")
-        const dst = (_customDir + "/" + slug + ".json").replace(/'/g, "'\\''")
-        const nm  = ("" + (name || "Copy")).replace(/'/g, "'\\''")
-        _pendingSwitchId = "user:" + slug
-        _userWriter.command = ["sh", "-c",
-            "mkdir -p '" + _customDir.replace(/'/g, "'\\''") + "' && t=$(jq --arg n '" + nm + "' '.name=$n' '" + src + "') && printf '%s' \"$t\" > '" + dst + "'"]
-        _userWriter.running = true
+        _renameWrite(srcId, _slugify(name), ("" + (name || "Copy")), true)
     }
 
     // Rename a user theme (changes its display name; slug/id stay stable).
     function renameTheme(id, newName) {
         if (!_isUser(id)) return
-        const f  = _themeFilePath(id).replace(/'/g, "'\\''")
-        const nm = ("" + newName).replace(/'/g, "'\\''")
-        _userWriter.command = ["sh", "-c", "t=$(jq --arg n '" + nm + "' '.name=$n' '" + f + "') && printf '%s' \"$t\" > '" + f + "'"]
-        _userWriter.running = true   // onExited refreshes the list
+        _renameWrite(id, _slugOf(id), ("" + newName), false)
+    }
+
+    // Read a theme json, set its .name, write it to custom/<targetSlug>.json — the
+    // read-modify-write that backs duplicate/rename, done in QML (no jq).
+    property string _rmwSlug:   ""
+    property string _rmwName:   ""
+    property bool   _rmwSwitch: false
+    property Process _rmwReader: Process {
+        stdout: StdioCollector { onStreamFinished: root._rmwDone(text) }
+    }
+    function _renameWrite(srcId, targetSlug, newName, switchTo) {
+        _rmwSlug = targetSlug; _rmwName = newName; _rmwSwitch = switchTo
+        _rmwReader.command = ["cat", _themeFilePath(srcId)]
+        _rmwReader.running = false
+        _rmwReader.running = true
+    }
+    function _rmwDone(txt) {
+        let o
+        try { o = JSON.parse(txt) } catch (e) { return }
+        o.name = root._rmwName
+        _writeUser(root._rmwSlug, JSON.stringify(o), root._rmwSwitch)
     }
 
     // Delete a user theme; if it was active, fall back to the first preset.

@@ -16,24 +16,18 @@ QtObject {
 
     function _focusedName() { return Hyprland.focusedMonitor?.name ?? "" }
 
+    property string _prevWin: ""
+
     function show() {
         screenName = _focusedName()
-        _savePrev.running = false
-        _savePrev.running = true
+        _prevWin = FocusService.savePrev()
         open = true
     }
     function hide() { open = false; _refocusTimer.restart() }
     function toggle() { if (open) hide(); else show() }
 
-    property Process _savePrev: Process {
-        command: ["sh", "-c",
-            "hyprctl activewindow -j | jq -r '.address // empty' > /tmp/qs-settings-prevwin"]
-    }
-    property Process _refocus: Process {
-        command: [Paths.script("refocus-prev.sh"), "/tmp/qs-settings-prevwin"]
-    }
     property Timer _refocusTimer: Timer {
         interval: 140
-        onTriggered: { root._refocus.running = false; root._refocus.running = true }
+        onTriggered: FocusService.refocus(root._prevWin)
     }
 }

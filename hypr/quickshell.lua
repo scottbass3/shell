@@ -12,7 +12,6 @@
 -- you don't want, or copy the bits you like into your own config.
 
 local home    = os.getenv("HOME")
-local scripts = home .. "/.config/quickshell/scripts/hypr"
 local mainMod = "SUPER"
 
 ------------------------------------------------------------------------------
@@ -54,8 +53,8 @@ if io.open(genBinds) then loadfile(genBinds)() end
 -- on any keyboard layout (code:10..19 = number row 1..0).
 for i = 1, 10 do
     local code = 9 + i
-    hl.bind(mainMod .. " + code:" .. code,         hl.dsp.exec_cmd(scripts .. "/ws.sh " .. i))
-    hl.bind(mainMod .. " + SHIFT + code:" .. code, hl.dsp.exec_cmd(scripts .. "/ws.sh " .. i .. " move"))
+    hl.bind(mainMod .. " + code:" .. code,         hl.dsp.exec_cmd("qs ipc call ws go " .. i .. " switch"))
+    hl.bind(mainMod .. " + SHIFT + code:" .. code, hl.dsp.exec_cmd("qs ipc call ws go " .. i .. " move"))
 end
 
 ------------------------------------------------------------------------------

@@ -36,7 +36,9 @@ Item {
     // Move a window to a workspace without stealing focus / warping the cursor.
     function _moveWin(addr, wsId) {
         if (addr === "") return
-        Hyprland.dispatch('hl.dsp.exec_cmd("' + Paths.script("movewin.sh") + ' ' + addr + ' ' + wsId + '")')
+        const a = Hyprland.activeToplevel
+        const prev = (a && a.lastIpcObject) ? (a.lastIpcObject.address || "") : ""
+        Hyprland.dispatch('hl.dsp.exec_cmd("' + Paths.script("movewin.sh") + ' ' + addr + ' ' + wsId + ' ' + prev + '")')
     }
 
     // Next free workspace in this monitor's range (max existing + 1, capped).

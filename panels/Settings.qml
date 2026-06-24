@@ -137,9 +137,13 @@ PanelWindow {
         { id: "weather",      label: "Weather",      icon: "󰖐" },
         { id: "tray",         label: "Tray",         icon: "󰍡" },
         { id: "tools",        label: "Tools",        icon: "󱁤" },
+        { id: "wallpaper",    label: "Wallpaper",    icon: "󰸉" },
         { id: "dependencies", label: "Dependencies", icon: "󰏖" },
         { id: "advanced",     label: "Advanced",     icon: "󰒓" }
     ]
+
+    // Wallpaper pane: active sub-tab ("local" | "favorites" | "browse")
+    property string _wpTab: "local"
 
     // ── Scrim ───────────────────────────────────────────────────────────────--
     Rectangle {
@@ -822,6 +826,177 @@ PanelWindow {
                         SettingBtn { Layout.topMargin: 8; label: "+  Add tool"; onClicked: root._toolCustomAdd() }
                     }
 
+                    // Wallpaper -----------------------------------------------------
+                    ColumnLayout {
+                        id: _wpPane
+                        visible: SettingsUi.category === "wallpaper"
+                        Layout.fillWidth: true
+                        Layout.margins: 20
+                        spacing: 6
+
+                        readonly property var _localList: WallpaperService.wallpapers
+                        readonly property var _favList:   WallpaperService.favorites
+                        readonly property var _shownList: root._wpTab === "favorites" ? _favList : _localList
+
+                        Text {
+                            visible: !WallpaperService.available
+                            Layout.fillWidth: true
+                            text: "hyprpaper not installed — the wallpaper switcher is disabled."
+                            wrapMode: Text.WordWrap; color: ThemeManager.error
+                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                        }
+
+                        // ── Tabs ──────────────────────────────────────────────────
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+                            Repeater {
+                                model: [ { id: "local", label: "Local" }, { id: "favorites", label: "Favorites" } ]
+                                delegate: Rectangle {
+                                    required property var modelData
+                                    readonly property bool sel: root._wpTab === modelData.id
+                                    implicitWidth: _wtl.implicitWidth + 24; implicitHeight: 30
+                                    radius: ThemeManager.chipRadius
+                                    color: sel ? Qt.rgba(ThemeManager.primary.r, ThemeManager.primary.g, ThemeManager.primary.b, 0.18)
+                                               : (_wtMa.containsMouse ? Qt.rgba(ThemeManager.onSurface.r, ThemeManager.onSurface.g, ThemeManager.onSurface.b, 0.08) : "transparent")
+                                    Text {
+                                        id: _wtl; anchors.centerIn: parent; text: modelData.label
+                                        color: parent.sel ? ThemeManager.primary : ThemeManager.onSurface
+                                        font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                    }
+                                    MouseArea { id: _wtMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root._wpTab = modelData.id }
+                                }
+                            }
+                            Item { Layout.fillWidth: true }
+                            SettingBtn { label: "Refresh"; onClicked: WallpaperService.refresh() }
+                        }
+
+                        Text {
+                            visible: _wpPane._shownList.length === 0
+                            Layout.topMargin: 8
+                            text: root._wpTab === "favorites" ? "No favorites yet — tap the heart on a wallpaper."
+                                                              : "No wallpapers in ~/wallpaper."
+                            color: ThemeManager.onSurfaceVariant
+                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                            opacity: 0.7
+                        }
+
+                        // ── Thumbnail grid ────────────────────────────────────────
+                        Flow {
+                            Layout.fillWidth: true
+                            Layout.topMargin: 6
+                            spacing: 8
+                            Repeater {
+                                model: _wpPane._shownList
+                                delegate: ClippingRectangle {
+                                    id: _tile
+                                    required property var modelData
+                                    readonly property string _path: "" + modelData
+                                    readonly property bool _isCurrent: WallpaperService.current === _path
+                                    width: 168; height: 96
+                                    radius: ThemeManager.chipRadius
+                                    color: ThemeManager.surfaceContainerHigh
+
+                                    Image {
+                                        anchors.fill: parent
+                                        source: "file://" + _tile._path
+                                        fillMode: Image.PreserveAspectCrop
+                                        asynchronous: true; cache: false
+                                        sourceSize.width: 336
+                                    }
+                                    // Selected border
+                                    Rectangle {
+                                        anchors.fill: parent; radius: parent.radius; color: "transparent"
+                                        border.width: _tile._isCurrent ? 2 : 0; border.color: ThemeManager.primary
+                                    }
+                                    // Hover darken
+                                    Rectangle {
+                                        anchors.fill: parent; radius: parent.radius
+                                        color: Qt.rgba(0, 0, 0, _tileMa.containsMouse ? 0.18 : 0)
+                                    }
+                                    // Favorite + rotation toggles (top-right)
+                                    Row {
+                                        anchors { top: parent.top; right: parent.right; margins: 5 }
+                                        spacing: 4
+                                        WpTileBtn {
+                                            icon: WallpaperService.isFavorite(_tile._path) ? "󰋑" : "󰋕"
+                                            active: WallpaperService.isFavorite(_tile._path)
+                                            onClicked: WallpaperService.toggleFavorite(_tile._path)
+                                        }
+                                        WpTileBtn {
+                                            icon: "󰑖"
+                                            active: WallpaperService.isInRotation(_tile._path)
+                                            onClicked: WallpaperService.toggleRotation(_tile._path)
+                                        }
+                                    }
+                                    MouseArea {
+                                        id: _tileMa
+                                        anchors.fill: parent
+                                        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                        onClicked: WallpaperService.commit(_tile._path)
+                                    }
+                                }
+                            }
+                        }
+
+                        // ── Rotation ──────────────────────────────────────────────
+                        SettingSection { text: "Rotation"; Layout.topMargin: 14 }
+                        SettingRowBase {
+                            label: "Rotate wallpapers"
+                            sub: WallpaperService.rotationPaths.length + " selected (toggle the ↻ on a wallpaper)"
+                            Rectangle {
+                                implicitWidth: 40; implicitHeight: 22; radius: 11
+                                opacity: WallpaperService.rotationPaths.length > 1 ? 1 : 0.4
+                                color: WallpaperService.rotationEnabled ? ThemeManager.primary : ThemeManager.surfaceContainerHigh
+                                Behavior on color { ColorAnimation { duration: 120 } }
+                                Rectangle {
+                                    width: 16; height: 16; radius: 8; y: 3
+                                    x: WallpaperService.rotationEnabled ? parent.width - width - 3 : 3
+                                    color: WallpaperService.rotationEnabled ? ThemeManager.onPrimary : ThemeManager.onSurfaceVariant
+                                    Behavior on x { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+                                }
+                                TapHandler {
+                                    enabled: WallpaperService.rotationPaths.length > 1
+                                    onTapped: WallpaperService.setRotationEnabled(!WallpaperService.rotationEnabled)
+                                }
+                            }
+                        }
+                        SettingRowBase {
+                            label: "Interval"
+                            Text {
+                                text: WallpaperService.rotationIntervalMin + " min"
+                                color: ThemeManager.onSurfaceVariant
+                                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm; Layout.rightMargin: 8
+                            }
+                            Rectangle {
+                                id: _wpIvTrack
+                                Layout.preferredWidth: 160; implicitHeight: 6; radius: 3
+                                color: ThemeManager.surfaceContainerHigh
+                                readonly property int _min: 1
+                                readonly property int _max: 120
+                                readonly property real _frac: Math.max(0, Math.min(1, (WallpaperService.rotationIntervalMin - _min) / (_max - _min)))
+                                Rectangle { anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                                            width: _wpIvTrack.width * _wpIvTrack._frac; radius: 3; color: ThemeManager.primary }
+                                Rectangle { width: 14; height: 14; radius: 7; color: ThemeManager.primary
+                                            y: -4; x: Math.max(0, Math.min(_wpIvTrack.width - width, _wpIvTrack.width * _wpIvTrack._frac - width / 2)) }
+                                MouseArea {
+                                    anchors.fill: parent; anchors.margins: -6
+                                    onPressed: (e) => _set(e.x); onPositionChanged: (e) => { if (pressed) _set(e.x) }
+                                    function _set(x) {
+                                        const f = Math.max(0, Math.min(1, (x - 6) / _wpIvTrack.width))
+                                        WallpaperService.setRotationInterval(_wpIvTrack._min + f * (_wpIvTrack._max - _wpIvTrack._min))
+                                    }
+                                }
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true; Layout.topMargin: 2
+                            text: "Each change re-generates the Material You theme from the new wallpaper."
+                            wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
+                            font.family: ThemeManager.fontFamily; font.pixelSize: 10; opacity: 0.7
+                        }
+                    }
+
                     // Dependencies --------------------------------------------------
                     ColumnLayout {
                         visible: SettingsUi.category === "dependencies"
@@ -1057,5 +1232,23 @@ PanelWindow {
                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
         HoverHandler { id: _bH; enabled: btn.enabled; cursorShape: Qt.PointingHandCursor }
         TapHandler { enabled: btn.enabled; onTapped: btn.clicked() }
+    }
+
+    // Small round overlay button on a wallpaper tile (favorite / rotation).
+    component WpTileBtn: Rectangle {
+        id: wtb
+        property string icon: ""
+        property bool   active: false
+        signal clicked()
+        implicitWidth: 24; implicitHeight: 24; radius: 12
+        color: active ? Qt.rgba(ThemeManager.primary.r, ThemeManager.primary.g, ThemeManager.primary.b, 0.9)
+                      : Qt.rgba(0, 0, 0, 0.45)
+        Text {
+            anchors.centerIn: parent
+            text: wtb.icon
+            color: wtb.active ? ThemeManager.onPrimary : "white"
+            font.family: ThemeManager.fontFamily; font.pixelSize: 13
+        }
+        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: wtb.clicked() }
     }
 }

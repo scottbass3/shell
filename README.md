@@ -38,6 +38,9 @@ in QML, with liquid SDF panel corners that merge into a rounded screen frame.
   - **Theme designer**: built-in Material You themes plus create / duplicate /
     rename / delete / import / export of custom themes; optional
     `matugen` wallpaper-based generation.
+  - **Wallpaper**: local + favorites + an online **Wallhaven browser** (search,
+    sort, download); set, star favorites, and a timed **rotation** that
+    re-themes on each change.
   - Configurable bar widgets, tray, tools, weather, and dependency overview.
   - **Keybindings**: assign Hyprland shortcuts for the shell's actions in-app
     (unbound by default; applied live via a generated Lua bind file).
@@ -71,6 +74,7 @@ Dependencies shows what's missing.
 | `khal` (+ `vdirsyncer`) | Calendar events (+ create/sync) |
 | `nmcli` (networkmanager) | VPN section in the network panel |
 | `wpctl` (wireplumber) | Bluetooth audio-profile switching (A2DP ↔ headset) |
+| `curl` | Downloading wallpapers from the online (Wallhaven) browser |
 
 The **network and Bluetooth panels are full in-shell managers** — no
 nm-connection-editor or blueman needed. Wi-Fi (list, connect with password,

@@ -1073,6 +1073,13 @@ PanelWindow {
                                 label: "Load more"
                                 onClicked: WallhavenService.loadMore()
                             }
+                            SettingText {
+                                Layout.topMargin: 10
+                                label: "Wallhaven API key"
+                                sub: "Optional — only needed to browse NSFW results"
+                                path: "wallpaper.wallhavenKey"
+                                placeholder: "from wallhaven.cc/settings/account"
+                            }
                         }
 
                         // ── Rotation ──────────────────────────────────────────────

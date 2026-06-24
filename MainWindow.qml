@@ -706,7 +706,7 @@ PanelWindow {
         Text {
             id: _wpTitle
             anchors { left: parent.left; top: parent.top; margins: 12 }
-            text: "Wallpaper"
+            text: (WallpaperService.favorites?.length ?? 0) > 0 ? "Favorites" : "Wallpaper"
             color: ThemeManager.onSurfaceVariant
             font.family: ThemeManager.fontFamily
             font.pixelSize: ThemeManager.fontSizeSm; font.weight: Font.Medium
@@ -724,7 +724,7 @@ PanelWindow {
                 width: parent.width
                 spacing: 8
                 Repeater {
-                    model: WallpaperService.wallpapers
+                    model: WallpaperService.railWallpapers
                     delegate: ClippingRectangle {
                         required property var modelData
                         required property int index

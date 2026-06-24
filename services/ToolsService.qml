@@ -46,7 +46,7 @@ QtObject {
             _origWp     = WallpaperService.current
             _origTheme  = ThemeManager.activeId
             _committing = false
-            const i = WallpaperService.wallpapers.indexOf(WallpaperService.current)
+            const i = WallpaperService.railWallpapers.indexOf(WallpaperService.current)
             wpSelected = i >= 0 ? i : 0
             _previewTimer.restart()
         } else if (!_committing) {
@@ -58,7 +58,7 @@ QtObject {
     property Timer _previewTimer: Timer {
         interval: 350   // debounce so fast arrowing doesn't spam matugen
         onTriggered: {
-            const w = WallpaperService.wallpapers[root.wpSelected]
+            const w = WallpaperService.railWallpapers[root.wpSelected]
             if (w && w !== WallpaperService.current) WallpaperService.preview(w)
         }
     }
@@ -76,18 +76,18 @@ QtObject {
 
     // Up / Down move the selection (rail, or wallpaper list when picker open)
     function up() {
-        if (wpOpen) { const n = WallpaperService.wallpapers.length; if (n) wpSelected = (wpSelected - 1 + n) % n }
+        if (wpOpen) { const n = WallpaperService.railWallpapers.length; if (n) wpSelected = (wpSelected - 1 + n) % n }
         else if (count > 0) selected = (selected - 1 + count) % count
     }
     function down() {
-        if (wpOpen) { const n = WallpaperService.wallpapers.length; if (n) wpSelected = (wpSelected + 1) % n }
+        if (wpOpen) { const n = WallpaperService.railWallpapers.length; if (n) wpSelected = (wpSelected + 1) % n }
         else if (count > 0) selected = (selected + 1) % count
     }
 
     // Left / Enter → enter / activate / confirm
     function activate() {
         if (wpOpen) {
-            commitWallpaper(WallpaperService.wallpapers[wpSelected])
+            commitWallpaper(WallpaperService.railWallpapers[wpSelected])
             return
         }
         if (selected < customTools.length) {

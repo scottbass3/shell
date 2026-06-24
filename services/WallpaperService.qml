@@ -15,6 +15,9 @@ QtObject {
     property var    wallpapers: []   // absolute file paths (local + downloaded)
     property string current:    ""
 
+    // What the tools-rail quick picker shows: favorites if any, else all local.
+    readonly property var railWallpapers: (favorites?.length ?? 0) > 0 ? favorites : wallpapers
+
     readonly property string downloadDir: Paths.stateDir + "/wallpapers"
 
     // hyprpaper is the wallpaper backend; without it the whole switcher is off.

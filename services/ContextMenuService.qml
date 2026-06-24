@@ -34,6 +34,19 @@ QtObject {
         PopoutService.pinned = false
     }
 
+    // Close the menu if its owning panel retracts (popout closed or switched to
+    // a different one).
+    property Connections _popoutConn: Connections {
+        target: PopoutService
+        function onHasCurrentChanged() {
+            if (root.open && !PopoutService.hasCurrent) root.close()
+        }
+        function onCurrentNameChanged() {
+            const owner = root.kind === "wifi" ? "network" : "bluetooth"
+            if (root.open && PopoutService.currentName !== owner) root.close()
+        }
+    }
+
     // ── Bluetooth audio profiles (pw-dump to read, wpctl to set) ──────────────
     property var    _profiles:    []    // [{ index, desc, active }]
     property int    _profilePwId: -1

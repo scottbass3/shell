@@ -17,7 +17,10 @@ Item {
     implicitHeight: Math.min(_col.implicitHeight + 16, 400)
 
     readonly property bool active: PopoutService.currentName === "network"
-    onActiveChanged: if (active && _vpnAvailable) _vpnScan.running = true
+    onActiveChanged: {
+        if (active && _vpnAvailable) _vpnScan.running = true
+        if (!active) expandedSsid = ""
+    }
 
     // ── Wi-Fi (Quickshell.Networking, reactive) ──────────────────────────────
     readonly property bool wifiEnabled: Networking.wifiEnabled
@@ -49,6 +52,9 @@ Item {
     }
 
     function _toggleWifi() { Networking.wifiEnabled = !Networking.wifiEnabled }
+
+    // Only one wifi row's actions/password are expanded at a time.
+    property string expandedSsid: ""
 
     // ── VPN (nmcli — soft dependency) ─────────────────────────────────────────
     readonly property bool _vpnAvailable: DependencyService.available("nmcli")
@@ -82,10 +88,6 @@ Item {
         }
     }
 
-    // ── Network-settings GUI button (nm-connection-editor — soft dependency) ──
-    readonly property bool _nmEditorAvailable: DependencyService.available("nm-connection-editor")
-    property Process _nmEditor: Process { command: ["nm-connection-editor"] }
-    function _launch(proc) { proc.running = true; PopoutService.close() }
 
     Flickable {
         id: _flick
@@ -126,19 +128,111 @@ Item {
             }
             Repeater {
                 model: root.wifiEnabled ? root.wifiNetworks : []
-                delegate: MenuRow {
+                delegate: ColumnLayout {
+                    id: _wrow
                     required property var modelData
-                    text: modelData.name
-                    icon: {
-                        const s = modelData.signalStrength   // 0..1
-                        if (s >= 0.8)  return "󰤨"
-                        if (s >= 0.55) return "󰤥"
-                        if (s >= 0.3)  return "󰤢"
-                        return "󰤟"
+                    readonly property string _ssid: "" + modelData.name
+                    readonly property bool _exp: root.expandedSsid === _ssid
+                    Layout.fillWidth: true
+                    spacing: 2
+
+                    MenuRow {
+                        text: _wrow._ssid
+                        icon: {
+                            const s = _wrow.modelData.signalStrength   // 0..1
+                            if (s >= 0.8)  return "󰤨"
+                            if (s >= 0.55) return "󰤥"
+                            if (s >= 0.3)  return "󰤢"
+                            return "󰤟"
+                        }
+                        active:   _wrow.modelData.connected
+                        // 󰤇 = saved/known network marker
+                        trailing: _wrow.modelData.connected ? "Connected"
+                                : (_wrow.modelData.known ? "Saved" : "")
+                        onClicked: {
+                            // Known/open networks connect on tap; otherwise expand
+                            // for a password (and to expose disconnect/forget).
+                            if (!_wrow.modelData.connected && !_wrow._exp
+                                && (_wrow.modelData.known)) {
+                                _wrow.modelData.connect()
+                            } else {
+                                root.expandedSsid = _wrow._exp ? "" : _wrow._ssid
+                                _pskField.text = ""
+                            }
+                        }
                     }
-                    active:   modelData.connected
-                    trailing: modelData.connected ? "Connected" : ""
-                    onClicked: if (!modelData.connected) modelData.connect()
+
+                    // Expanded actions: password (unknown nets) + connect/forget.
+                    ColumnLayout {
+                        visible: _wrow._exp
+                        Layout.fillWidth: true
+                        Layout.leftMargin: 8
+                        Layout.rightMargin: 4
+                        Layout.bottomMargin: 4
+                        spacing: 4
+
+                        Rectangle {
+                            visible: !_wrow.modelData.connected && !_wrow.modelData.known
+                            Layout.fillWidth: true
+                            implicitHeight: 30
+                            radius: ThemeManager.chipRadius
+                            color: ThemeManager.surfaceContainer
+                            border.width: _pskField.activeFocus ? 1 : 0
+                            border.color: ThemeManager.primary
+                            TextInput {
+                                id: _pskField
+                                anchors { fill: parent; leftMargin: 10; rightMargin: 34 }
+                                verticalAlignment: TextInput.AlignVCenter
+                                color: ThemeManager.onSurface
+                                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                echoMode: _pskReveal.checked ? TextInput.Normal : TextInput.Password
+                                clip: true
+                                onActiveFocusChanged: PopoutService.keyboardActive = activeFocus
+                                onAccepted: _wrow.modelData.connectWithPsk(text)
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: _pskField.text === ""
+                                    text: "Password"
+                                    color: ThemeManager.onSurfaceVariant; opacity: 0.5
+                                    font: _pskField.font
+                                }
+                            }
+                            Text {
+                                id: _pskReveal
+                                property bool checked: false
+                                anchors { right: parent.right; verticalCenter: parent.verticalCenter; rightMargin: 8 }
+                                text: checked ? "󰈉" : "󰈈"
+                                color: ThemeManager.onSurfaceVariant
+                                font.family: ThemeManager.fontFamily; font.pixelSize: 14
+                                MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor; onClicked: _pskReveal.checked = !_pskReveal.checked }
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 4
+                            NetBtn {
+                                visible: !_wrow.modelData.connected
+                                text: "Connect"
+                                onClicked: {
+                                    if (_wrow.modelData.known) _wrow.modelData.connect()
+                                    else _wrow.modelData.connectWithPsk(_pskField.text)
+                                }
+                            }
+                            NetBtn {
+                                visible: _wrow.modelData.connected
+                                text: "Disconnect"
+                                onClicked: _wrow.modelData.disconnect()
+                            }
+                            NetBtn {
+                                visible: _wrow.modelData.known
+                                text: "Forget"
+                                danger: true
+                                onClicked: { _wrow.modelData.forget(); root.expandedSsid = "" }
+                            }
+                            Item { Layout.fillWidth: true }
+                        }
+                    }
                 }
             }
 
@@ -173,12 +267,6 @@ Item {
                     trailing: modelData.active ? "On" : "Off"
                     onClicked: root._nm(["nmcli", "connection", modelData.active ? "down" : "up", "id", modelData.name])
                 }
-            }
-
-            MenuFooter {
-                visible: root._nmEditorAvailable
-                text: "Open network settings"
-                onClicked: root._launch(root._nmEditor)
             }
         }
     }
@@ -254,35 +342,31 @@ Item {
         }
     }
 
-    component MenuFooter: Rectangle {
-        id: mf
+    // Small action button used in the expanded wifi row.
+    component NetBtn: Rectangle {
+        id: nb
         property string text: ""
+        property bool   danger: false
         signal clicked()
-        Layout.fillWidth: true
-        Layout.topMargin: 4
-        implicitHeight: 30
+        implicitWidth:  _nbLabel.implicitWidth + 20
+        implicitHeight: 28
         radius: ThemeManager.chipRadius
-        color: _mfMa.containsMouse ? Qt.rgba(ThemeManager.primary.r, ThemeManager.primary.g, ThemeManager.primary.b, 0.14) : ThemeManager.surfaceContainer
+        readonly property color _accent: danger ? ThemeManager.error : ThemeManager.primary
+        color: _nbMa.containsMouse
+            ? Qt.rgba(nb._accent.r, nb._accent.g, nb._accent.b, 0.22)
+            : Qt.rgba(nb._accent.r, nb._accent.g, nb._accent.b, 0.13)
         Behavior on color { ColorAnimation { duration: 100 } }
-        RowLayout {
-            anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
-            spacing: 6
-            Text {
-                text: "󰏌"
-                color: ThemeManager.primary
-                font.family: ThemeManager.fontFamily; font.pixelSize: 13
-            }
-            Text {
-                text: mf.text
-                color: ThemeManager.onSurface
-                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                Layout.fillWidth: true
-            }
+        Text {
+            id: _nbLabel
+            anchors.centerIn: parent
+            text: nb.text
+            color: nb._accent
+            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
         }
         MouseArea {
-            id: _mfMa; anchors.fill: parent
+            id: _nbMa; anchors.fill: parent
             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-            onClicked: mf.clicked()
+            onClicked: nb.clicked()
         }
     }
 }

@@ -18,6 +18,10 @@ QtObject {
     // Pinned = stay open regardless of hover (click-to-keep, e.g. notifications)
     property bool pinned: false
 
+    // Set by a popout while a text field is being edited (wifi password, bt
+    // rename) so the shell layer takes exclusive keyboard focus.
+    property bool keyboardActive: false
+
     // Arbitrary per-popup payload (e.g. QsMenuHandle for tray menus)
     property var menuHandle: null
 
@@ -68,12 +72,13 @@ QtObject {
             const key = currentName + (anchorScreen?.name ?? "")
             const sx = Object.assign({}, _savedX);  sx[key] = anchorX;  _savedX = sx
         }
-        hasCurrent    = false
-        currentName   = ""
-        widgetHovered = false
-        panelHovered  = false
-        pinned        = false
-        menuHandle    = null
+        hasCurrent     = false
+        currentName    = ""
+        widgetHovered  = false
+        panelHovered   = false
+        pinned         = false
+        keyboardActive = false
+        menuHandle     = null
         _closeTimer.stop()
     }
 

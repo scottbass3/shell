@@ -157,9 +157,18 @@ PanelWindow {
     readonly property real _launcherX: Math.round((root.width - _launcherW) / 2)
     readonly property real _launcherY: root.height - _launcherH   // flush with bottom edge
 
-    // Exclusive keyboard while the toolbar's keyboard mode OR the launcher is active.
-    WlrLayershell.keyboardFocus: (ToolsService.open || ToolsService.wpOpen || root._launcherActive)
-        ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    // Exclusive keyboard while the toolbar's keyboard mode OR the launcher is
+    // active. Hover popouts that contain text fields (dashboard calendar form,
+    // network password, bluetooth rename) take OnDemand focus instead — they can
+    // receive keys when a field is clicked, without stealing focus on hover.
+    readonly property bool _popoutWantsKeys: PopoutService.hasCurrent
+        && (PopoutService.currentName === "dashboard"
+            || PopoutService.currentName === "network"
+            || PopoutService.currentName === "bluetooth")
+    WlrLayershell.keyboardFocus: (ToolsService.open || ToolsService.wpOpen
+            || root._launcherActive || PopoutService.keyboardActive)
+        ? WlrKeyboardFocus.Exclusive
+        : (_popoutWantsKeys ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None)
 
     // Hyprland doesn't auto-restore window keyboard focus after a layer releases
     // its exclusive grab — re-assert focus on the previously focused window.

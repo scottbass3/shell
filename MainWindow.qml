@@ -403,6 +403,9 @@ PanelWindow {
     // others fade + scale out. Container size animates to active panel's size.
     Item {
         id: _popoutContainer
+        // Above the context-menu dismiss catcher (200) so right-clicking another
+        // row reaches it (reopening the menu) instead of just dismissing.
+        z:       201
         x:       root._popoutX
         y:       root._panelTop
         width:   root._popoutWidth
@@ -602,7 +605,7 @@ PanelWindow {
     }
     Loader {
         id: _ctxMenuLoader
-        z: 201
+        z: 202
         active:  root._ctxOpen
         visible: root._ctxOpen
         source:  "panels/ContextMenu.qml"

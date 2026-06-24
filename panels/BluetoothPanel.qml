@@ -145,6 +145,7 @@ Item {
                                 ContextMenuService.show("bt", d, p.x, p.y, PopoutService.anchorScreen)
                             } else {
                                 d.connected ? d.disconnect() : d.connect()
+                                ContextMenuService.close()
                             }
                         }
                     }

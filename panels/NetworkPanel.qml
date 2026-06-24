@@ -137,8 +137,8 @@ Item {
                     // Left click = connect/disconnect; a secured unknown network has
                     // no saved password so it opens the menu. Right click = menu.
                     onClicked: {
-                        if (modelData.connected) modelData.disconnect()
-                        else if (modelData.known) modelData.connect()
+                        if (modelData.connected) { modelData.disconnect(); ContextMenuService.close() }
+                        else if (modelData.known) { modelData.connect(); ContextMenuService.close() }
                         else {
                             const p = mapToItem(null, width / 2, height)
                             ContextMenuService.show("wifi", modelData, p.x, p.y, PopoutService.anchorScreen)

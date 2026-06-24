@@ -181,14 +181,6 @@ Item {
                 }
             }
 
-            Text {
-                visible: root.wifiEnabled && root.wifiNetworks.length > 0
-                Layout.topMargin: 4
-                text: "Left-click to connect · right-click for options"
-                color: ThemeManager.onSurfaceVariant
-                font.family: ThemeManager.fontFamily; font.pixelSize: 9
-                opacity: 0.5
-            }
         }
     }
 

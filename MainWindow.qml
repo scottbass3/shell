@@ -224,6 +224,12 @@ PanelWindow {
             width:  root._trayMenuPinned ? root.width  : 0
             height: root._trayMenuPinned ? root.height : 0
         }
+        // Full-screen region while a right-click context menu is open
+        Region {
+            x: 0; y: 0
+            width:  root._ctxOpen ? root.width  : 0
+            height: root._ctxOpen ? root.height : 0
+        }
         // Tools notch / rail — reach the actual screen edge so pushing the mouse
         // into the border deploys it. (Width includes the border strip.)
         Region {
@@ -582,6 +588,30 @@ PanelWindow {
                 }
             }
         }
+    }
+
+    // ── Floating right-click context menu (network / bluetooth) ───────────────
+    readonly property bool _ctxOpen:
+        ContextMenuService.open && ContextMenuService.screen?.name === root.modelData?.name
+    MouseArea {
+        anchors.fill: parent
+        visible: root._ctxOpen
+        z: 200
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        onPressed: ContextMenuService.close()
+    }
+    Loader {
+        id: _ctxMenuLoader
+        z: 201
+        active:  root._ctxOpen
+        visible: root._ctxOpen
+        source:  "panels/ContextMenu.qml"
+        x: Math.round(Math.min(Math.max(ThemeManager.borderWidth, ContextMenuService.anchorX),
+                               root.width - width - ThemeManager.borderWidth))
+        y: Math.round(Math.min(Math.max(ThemeManager.barHeight, ContextMenuService.anchorY),
+                               root.height - height - ThemeManager.borderWidth))
+        layer.enabled: true
+        layer.effect: Elevation { level: 4 }
     }
 
     // Click-outside dismiss while the toolbar is keyboard-open

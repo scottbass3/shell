@@ -376,7 +376,7 @@ PanelWindow {
                         SettingSection { text: "Clock" }
                         SettingToggle { label: "24-hour clock"; path: "bar.clock.use24h"; def: true }
                         SettingToggle { label: "Show seconds"; path: "bar.clock.seconds"; def: false }
-                        SettingSection { text: "Widgets (opt-in)" }
+                        SettingSection { text: "Widgets" }
                         SettingToggle { label: "Launcher button"; path: "bar.widgets.launcher"; def: true }
                         SettingToggle { label: "Active window title"; path: "bar.widgets.windowTitle"; def: true }
                         SettingToggle { label: "Media mini indicator"; path: "bar.widgets.media"; def: false }

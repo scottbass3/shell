@@ -110,6 +110,47 @@ QtObject {
     // Back-compat alias (mouse click = immediate commit)
     function apply(path) { commit(path) }
 
+    // ── Download (online browser) ─────────────────────────────────────────────
+    readonly property bool canDownload: DependencyService.available("curl")
+    property string downloadingId: ""   // wallhaven id currently downloading ("" = none)
+    property string _dlTarget: ""
+    property bool   _dlFavorite: false
+
+    function _extFor(fileType) {
+        const t = "" + (fileType || "")
+        if (t.indexOf("png") >= 0)  return "png"
+        if (t.indexOf("webp") >= 0) return "webp"
+        return "jpg"
+    }
+
+    // Download a full image to the managed dir, then set it (or favorite it).
+    function download(url, id, fileType, favorite) {
+        if (!url || !canDownload) return
+        const out = downloadDir + "/" + id + "." + _extFor(fileType)
+        _dlTarget     = out
+        _dlFavorite   = !!favorite
+        downloadingId = "" + id
+        _dlProc.command = ["sh", "-c",
+            "mkdir -p \"$(dirname \"$1\")\"; curl -fsSL --max-time 60 -A 'Mozilla/5.0 quickshell-wallpaper' -o \"$1\" \"$2\"",
+            "sh", out, url]
+        _dlProc.running = false
+        _dlProc.running = true
+    }
+    property Process _dlProc: Process {
+        running: false
+        onExited: (code, status) => {
+            root.downloadingId = ""
+            if (code !== 0) return
+            root.refresh()
+            if (root._dlFavorite) {
+                const f = (root.favorites || []).slice()
+                if (f.indexOf(root._dlTarget) < 0) { f.push(root._dlTarget); SettingsService.set("wallpaper.favorites", f) }
+            } else {
+                root.commit(root._dlTarget)
+            }
+        }
+    }
+
     readonly property string _liveScript:
         "WP=\"$1\"; " +
         "pgrep -x hyprpaper >/dev/null || { hyprpaper >/dev/null 2>&1 & sleep 0.6; }; " +

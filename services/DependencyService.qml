@@ -21,7 +21,8 @@ QtObject {
         "khal":               { bin: "khal",                pkg: "khal",                 desc: "Calendar events" },
         "vdirsyncer":         { bin: "vdirsyncer",          pkg: "vdirsyncer",           desc: "Calendar sync (CalDAV)" },
         "nmcli":              { bin: "nmcli",               pkg: "networkmanager",       desc: "VPN connections (network panel)" },
-        "wpctl":              { bin: "wpctl",               pkg: "wireplumber",          desc: "Bluetooth audio profile switching" }
+        "wpctl":              { bin: "wpctl",               pkg: "wireplumber",          desc: "Bluetooth audio profile switching" },
+        "curl":               { bin: "curl",                pkg: "curl",                 desc: "Online wallpaper downloads" }
     })
 
     property var present: ({})   // name → bool

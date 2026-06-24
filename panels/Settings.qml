@@ -851,7 +851,7 @@ PanelWindow {
                             Layout.fillWidth: true
                             spacing: 6
                             Repeater {
-                                model: [ { id: "local", label: "Local" }, { id: "favorites", label: "Favorites" } ]
+                                model: [ { id: "local", label: "Local" }, { id: "favorites", label: "Favorites" }, { id: "browse", label: "Browse" } ]
                                 delegate: Rectangle {
                                     required property var modelData
                                     readonly property bool sel: root._wpTab === modelData.id
@@ -872,7 +872,7 @@ PanelWindow {
                         }
 
                         Text {
-                            visible: _wpPane._shownList.length === 0
+                            visible: root._wpTab !== "browse" && _wpPane._shownList.length === 0
                             Layout.topMargin: 8
                             text: root._wpTab === "favorites" ? "No favorites yet — tap the heart on a wallpaper."
                                                               : "No wallpapers in ~/wallpaper."
@@ -881,13 +881,14 @@ PanelWindow {
                             opacity: 0.7
                         }
 
-                        // ── Thumbnail grid ────────────────────────────────────────
+                        // ── Local / Favorites thumbnail grid ──────────────────────
                         Flow {
+                            visible: root._wpTab !== "browse"
                             Layout.fillWidth: true
                             Layout.topMargin: 6
                             spacing: 8
                             Repeater {
-                                model: _wpPane._shownList
+                                model: root._wpTab === "browse" ? [] : _wpPane._shownList
                                 delegate: ClippingRectangle {
                                     id: _tile
                                     required property var modelData
@@ -906,12 +907,12 @@ PanelWindow {
                                     }
                                     // Selected border
                                     Rectangle {
-                                        anchors.fill: parent; radius: parent.radius; color: "transparent"
+                                        anchors.fill: parent; radius: _tile.radius; color: "transparent"
                                         border.width: _tile._isCurrent ? 2 : 0; border.color: ThemeManager.primary
                                     }
                                     // Hover darken
                                     Rectangle {
-                                        anchors.fill: parent; radius: parent.radius
+                                        anchors.fill: parent; radius: _tile.radius
                                         color: Qt.rgba(0, 0, 0, _tileMa.containsMouse ? 0.18 : 0)
                                     }
                                     // Favorite + rotation toggles (top-right)
@@ -936,6 +937,141 @@ PanelWindow {
                                         onClicked: WallpaperService.commit(_tile._path)
                                     }
                                 }
+                            }
+                        }
+
+                        // ── Browse (Wallhaven) ────────────────────────────────────
+                        ColumnLayout {
+                            visible: root._wpTab === "browse"
+                            Layout.fillWidth: true
+                            Layout.topMargin: 6
+                            spacing: 6
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 6
+                                TextField {
+                                    id: _whSearch
+                                    Layout.fillWidth: true; implicitHeight: 30
+                                    placeholderText: "Search wallhaven.cc…"
+                                    color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                    leftPadding: 10; rightPadding: 10
+                                    background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
+                                                            border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
+                                    onAccepted: WallhavenService.search(text, _whSort.cur)
+                                }
+                                SettingBtn { label: "Search"; onClicked: WallhavenService.search(_whSearch.text, _whSort.cur) }
+                            }
+                            // Sorting
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 4
+                                Repeater {
+                                    model: [ { k: "toplist", l: "Top" }, { k: "date_added", l: "Latest" }, { k: "views", l: "Views" }, { k: "random", l: "Random" } ]
+                                    delegate: Rectangle {
+                                        required property var modelData
+                                        readonly property bool sel: _whSort.cur === modelData.k
+                                        implicitWidth: _whsl.implicitWidth + 18; implicitHeight: 26
+                                        radius: ThemeManager.chipRadius
+                                        color: sel ? Qt.rgba(ThemeManager.primary.r, ThemeManager.primary.g, ThemeManager.primary.b, 0.18)
+                                                   : (_whsMa.containsMouse ? Qt.rgba(ThemeManager.onSurface.r, ThemeManager.onSurface.g, ThemeManager.onSurface.b, 0.08) : "transparent")
+                                        Text { id: _whsl; anchors.centerIn: parent; text: modelData.l
+                                               color: parent.sel ? ThemeManager.primary : ThemeManager.onSurface
+                                               font.family: ThemeManager.fontFamily; font.pixelSize: 11 }
+                                        MouseArea { id: _whsMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                                    onClicked: { _whSort.cur = modelData.k; WallhavenService.search(_whSearch.text, modelData.k) } }
+                                    }
+                                }
+                                Item { Layout.fillWidth: true }
+                                Item {
+                                    property string cur: "toplist"
+                                    id: _whSort
+                                }
+                            }
+
+                            Text {
+                                visible: !WallpaperService.canDownload
+                                Layout.fillWidth: true
+                                text: "Browsing works, but downloading a wallpaper needs curl (install it to set/favorite from here)."
+                                wrapMode: Text.WordWrap; color: ThemeManager.error
+                                font.family: ThemeManager.fontFamily; font.pixelSize: 10
+                            }
+                            Text {
+                                visible: WallhavenService.error !== ""
+                                Layout.fillWidth: true
+                                text: WallhavenService.error
+                                color: ThemeManager.error; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                            }
+                            Text {
+                                visible: WallhavenService.loading && WallhavenService.results.length === 0
+                                text: "Searching…"; color: ThemeManager.onSurfaceVariant
+                                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm; opacity: 0.7
+                            }
+                            Text {
+                                visible: !WallhavenService.loading && WallhavenService.error === "" && WallhavenService.results.length === 0
+                                text: "Search wallhaven.cc for wallpapers."; color: ThemeManager.onSurfaceVariant
+                                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm; opacity: 0.7
+                            }
+
+                            Flow {
+                                Layout.fillWidth: true
+                                spacing: 8
+                                Repeater {
+                                    model: root._wpTab === "browse" ? WallhavenService.results : []
+                                    delegate: ClippingRectangle {
+                                        id: _rtile
+                                        required property var modelData
+                                        readonly property bool _busy: WallpaperService.downloadingId === ("" + modelData.id)
+                                        width: 168; height: 96
+                                        radius: ThemeManager.chipRadius
+                                        color: ThemeManager.surfaceContainerHigh
+
+                                        Image {
+                                            anchors.fill: parent
+                                            source: _rtile.modelData.thumb
+                                            fillMode: Image.PreserveAspectCrop
+                                            asynchronous: true; cache: true
+                                        }
+                                        Rectangle {
+                                            anchors.fill: parent; radius: _rtile.radius
+                                            color: Qt.rgba(0, 0, 0, (_rtMa.containsMouse || _rtile._busy) ? 0.3 : 0)
+                                        }
+                                        // Resolution chip
+                                        Text {
+                                            anchors { bottom: parent.bottom; left: parent.left; margins: 4 }
+                                            text: _rtile.modelData.resolution || ""
+                                            color: "white"; style: Text.Outline; styleColor: "black"
+                                            font.family: ThemeManager.fontFamily; font.pixelSize: 9
+                                        }
+                                        Text {
+                                            anchors.centerIn: parent
+                                            visible: _rtile._busy
+                                            text: "󰇚"; color: "white"
+                                            font.family: ThemeManager.fontFamily; font.pixelSize: 22
+                                        }
+                                        // Favorite (download + favorite)
+                                        Row {
+                                            anchors { top: parent.top; right: parent.right; margins: 5 }
+                                            WpTileBtn {
+                                                icon: "󰋕"
+                                                onClicked: WallpaperService.download(_rtile.modelData.full, _rtile.modelData.id, _rtile.modelData.fileType, true)
+                                            }
+                                        }
+                                        MouseArea {
+                                            id: _rtMa; anchors.fill: parent
+                                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                            enabled: WallpaperService.canDownload && !_rtile._busy
+                                            // Click = download + set
+                                            onClicked: WallpaperService.download(_rtile.modelData.full, _rtile.modelData.id, _rtile.modelData.fileType, false)
+                                        }
+                                    }
+                                }
+                            }
+                            SettingBtn {
+                                Layout.topMargin: 6
+                                visible: WallhavenService.hasMore && !WallhavenService.loading
+                                label: "Load more"
+                                onClicked: WallhavenService.loadMore()
                             }
                         }
 

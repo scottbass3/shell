@@ -205,8 +205,18 @@ Item {
                             }
                         }
                         MouseArea {
-                            id: _devMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                            onClicked: root._toggleExpand(_dev._addr, _dev.modelData.connected)
+                            id: _devMa; anchors.fill: parent
+                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            // Left click = connect/disconnect; right click = context menu.
+                            onClicked: (m) => {
+                                if (m.button === Qt.RightButton) {
+                                    root._toggleExpand(_dev._addr, _dev.modelData.connected)
+                                } else {
+                                    const d = _dev.modelData
+                                    d.connected ? d.disconnect() : d.connect()
+                                }
+                            }
                         }
                     }
 
@@ -304,15 +314,11 @@ Item {
                             }
                         }
 
-                        // Action buttons
+                        // Action buttons (connect/disconnect is the left-click)
                         RowLayout {
                             Layout.fillWidth: true
                             Layout.topMargin: 2
                             spacing: 4
-                            BtBtn {
-                                text: _dev.modelData.connected ? "Disconnect" : "Connect"
-                                onClicked: _dev.modelData.connected ? _dev.modelData.disconnect() : _dev.modelData.connect()
-                            }
                             BtBtn {
                                 text: "Trust"
                                 accent: _dev.modelData.trusted
@@ -328,6 +334,15 @@ Item {
                         }
                     }
                 }
+            }
+
+            Text {
+                visible: root.btEnabled && (Bluetooth.devices?.values?.length ?? 0) > 0
+                Layout.topMargin: 4
+                text: "Left-click to connect · right-click for options"
+                color: ThemeManager.onSurfaceVariant
+                font.family: ThemeManager.fontFamily; font.pixelSize: 9
+                opacity: 0.5
             }
         }
     }

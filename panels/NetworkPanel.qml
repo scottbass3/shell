@@ -149,20 +149,22 @@ Item {
                         // 󰤇 = saved/known network marker
                         trailing: _wrow.modelData.connected ? "Connected"
                                 : (_wrow.modelData.known ? "Saved" : "")
+                        // Left click = primary (dis/connect). A secured unknown
+                        // network has no saved password, so it opens the menu to
+                        // enter one. Right click always opens the context menu.
                         onClicked: {
-                            // Known/open networks connect on tap; otherwise expand
-                            // for a password (and to expose disconnect/forget).
-                            if (!_wrow.modelData.connected && !_wrow._exp
-                                && (_wrow.modelData.known)) {
-                                _wrow.modelData.connect()
-                            } else {
-                                root.expandedSsid = _wrow._exp ? "" : _wrow._ssid
-                                _pskField.text = ""
-                            }
+                            const m = _wrow.modelData
+                            if (m.connected) m.disconnect()
+                            else if (m.known) m.connect()
+                            else { root.expandedSsid = _wrow._ssid; _pskField.text = "" }
+                        }
+                        onRightClicked: {
+                            root.expandedSsid = _wrow._exp ? "" : _wrow._ssid
+                            _pskField.text = ""
                         }
                     }
 
-                    // Expanded actions: password (unknown nets) + connect/forget.
+                    // Context menu (right-click): password (unknown nets) + forget.
                     ColumnLayout {
                         visible: _wrow._exp
                         Layout.fillWidth: true
@@ -211,18 +213,11 @@ Item {
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 4
+                            // Connect with the typed password (unknown secured nets).
                             NetBtn {
-                                visible: !_wrow.modelData.connected
+                                visible: !_wrow.modelData.connected && !_wrow.modelData.known
                                 text: "Connect"
-                                onClicked: {
-                                    if (_wrow.modelData.known) _wrow.modelData.connect()
-                                    else _wrow.modelData.connectWithPsk(_pskField.text)
-                                }
-                            }
-                            NetBtn {
-                                visible: _wrow.modelData.connected
-                                text: "Disconnect"
-                                onClicked: _wrow.modelData.disconnect()
+                                onClicked: _wrow.modelData.connectWithPsk(_pskField.text)
                             }
                             NetBtn {
                                 visible: _wrow.modelData.known
@@ -268,6 +263,15 @@ Item {
                     onClicked: root._nm(["nmcli", "connection", modelData.active ? "down" : "up", "id", modelData.name])
                 }
             }
+
+            Text {
+                visible: root.wifiEnabled && root.wifiNetworks.length > 0
+                Layout.topMargin: 4
+                text: "Left-click to connect · right-click for options"
+                color: ThemeManager.onSurfaceVariant
+                font.family: ThemeManager.fontFamily; font.pixelSize: 9
+                opacity: 0.5
+            }
         }
     }
 
@@ -306,6 +310,7 @@ Item {
         property string trailing: ""
         property bool   active:   false
         signal clicked()
+        signal rightClicked()
         Layout.fillWidth: true
         implicitHeight: 32
         radius: ThemeManager.chipRadius
@@ -337,8 +342,9 @@ Item {
         }
         MouseArea {
             id: _mrMa; anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-            onClicked: mr.clicked()
+            onClicked: (m) => { if (m.button === Qt.RightButton) mr.rightClicked(); else mr.clicked() }
         }
     }
 

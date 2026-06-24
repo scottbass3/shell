@@ -70,14 +70,17 @@ Dependencies shows what's missing.
 | `qt6-websockets` (Qt module) | YouTube Music companion (realtime) |
 | `khal` (+ `vdirsyncer`) | Calendar events (+ create/sync) |
 | `nmcli` (networkmanager) | VPN section in the network panel |
-| `nm-connection-editor` | "Open network settings" button |
-| `blueman-manager` | "Open blueman-manager" button |
+| `wpctl` (wireplumber) | Bluetooth audio-profile switching (A2DP ↔ headset) |
 
-Wi-Fi (list, connect, radio toggle), Bluetooth and battery alerts need **no
-external tools** — they use Quickshell's native NetworkManager/BlueZ/UPower
-bindings and the shell's own notifications. Weather and the YouTube Music
-companion use Qt's built-in HTTP client (no `curl`). Each missing tool above
-just hides its feature; Settings → Dependencies shows what's absent.
+The **network and Bluetooth panels are full in-shell managers** — no
+nm-connection-editor or blueman needed. Wi-Fi (list, connect with password,
+forget, radio toggle), Bluetooth (scan, pair, connect, trust, forget, rename,
+battery) and battery alerts all use Quickshell's native
+NetworkManager/BlueZ/UPower bindings and the shell's own notifications. Weather
+and the YouTube Music companion use Qt's built-in HTTP client (no `curl`). Each
+missing tool above just hides its feature; Settings → Dependencies shows what's
+absent. For advanced Wi-Fi config (static IP, enterprise 802.1x, VPN editing)
+use your preferred NetworkManager front-end.
 
 The tools toolbar is **user-defined**: add your own buttons in Settings → Tools
 (name + command + icon), so anything you'd launch — a file manager, screen

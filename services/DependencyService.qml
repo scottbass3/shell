@@ -21,8 +21,7 @@ QtObject {
         "khal":               { bin: "khal",                pkg: "khal",                 desc: "Calendar events" },
         "vdirsyncer":         { bin: "vdirsyncer",          pkg: "vdirsyncer",           desc: "Calendar sync (CalDAV)" },
         "nmcli":              { bin: "nmcli",               pkg: "networkmanager",       desc: "VPN connections (network panel)" },
-        "nm-connection-editor":{ bin: "nm-connection-editor",pkg: "nm-connection-editor", desc: "Network settings GUI button" },
-        "blueman-manager":    { bin: "blueman-manager",     pkg: "blueman",              desc: "Bluetooth manager GUI button" }
+        "wpctl":              { bin: "wpctl",               pkg: "wireplumber",          desc: "Bluetooth audio profile switching" }
     })
 
     property var present: ({})   // name → bool

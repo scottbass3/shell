@@ -55,6 +55,7 @@ QtObject {
         if (i >= 0) r.splice(i, 1); else r.push(p)
         SettingsService.set("wallpaper.rotation.paths", r)
     }
+    function setRotation(paths) { SettingsService.set("wallpaper.rotation.paths", paths || []) }
 
     // Advance to the next wallpaper in the set (always re-themes via commit).
     function advance() {

@@ -841,6 +841,7 @@ PanelWindow {
                         readonly property var _localList: WallpaperService.wallpapers
                         readonly property var _favList:   WallpaperService.favorites
                         readonly property var _shownList: root._wpTab === "favorites" ? _favList : _localList
+                        property int _rotAnchor: -1   // last-clicked index, for shift-range rotation select
 
                         Text {
                             visible: !WallpaperService.available
@@ -896,8 +897,10 @@ PanelWindow {
                                 delegate: ClippingRectangle {
                                     id: _tile
                                     required property var modelData
+                                    required property int index
                                     readonly property string _path: "" + modelData
                                     readonly property bool _isCurrent: WallpaperService.current === _path
+                                    readonly property bool _inRot: WallpaperService.isInRotation(_path)
                                     width: 168; height: 96
                                     radius: ThemeManager.chipRadius
                                     color: ThemeManager.surfaceContainerHigh
@@ -909,36 +912,57 @@ PanelWindow {
                                         asynchronous: true; cache: false
                                         sourceSize.width: 336
                                     }
-                                    // Selected border
+                                    // Border: current wallpaper (primary) or in-rotation (tertiary)
                                     Rectangle {
                                         anchors.fill: parent; radius: _tile.radius; color: "transparent"
-                                        border.width: _tile._isCurrent ? 2 : 0; border.color: ThemeManager.primary
+                                        border.width: (_tile._isCurrent || _tile._inRot) ? 2 : 0
+                                        border.color: _tile._isCurrent ? ThemeManager.primary : ThemeManager.tertiary
                                     }
                                     // Hover darken
                                     Rectangle {
                                         anchors.fill: parent; radius: _tile.radius
                                         color: Qt.rgba(0, 0, 0, _tileMa.containsMouse ? 0.18 : 0)
                                     }
-                                    // Favorite + rotation toggles (top-right)
-                                    Row {
-                                        anchors { top: parent.top; right: parent.right; margins: 5 }
-                                        spacing: 4
-                                        WpTileBtn {
-                                            icon: WallpaperService.isFavorite(_tile._path) ? "󰋑" : "󰋕"
-                                            active: WallpaperService.isFavorite(_tile._path)
-                                            onClicked: WallpaperService.toggleFavorite(_tile._path)
-                                        }
-                                        WpTileBtn {
-                                            icon: "󰑖"
-                                            active: WallpaperService.isInRotation(_tile._path)
-                                            onClicked: WallpaperService.toggleRotation(_tile._path)
-                                        }
+                                    // Rotation badge (bottom-left) — membership set via ctrl/shift-click
+                                    Rectangle {
+                                        visible: _tile._inRot
+                                        anchors { left: parent.left; bottom: parent.bottom; margins: 5 }
+                                        width: 20; height: 20; radius: 10
+                                        color: Qt.rgba(ThemeManager.tertiary.r, ThemeManager.tertiary.g, ThemeManager.tertiary.b, 0.9)
+                                        Text { anchors.centerIn: parent; text: "󰑖"; color: ThemeManager.onTertiary
+                                               font.family: ThemeManager.fontFamily; font.pixelSize: 12 }
                                     }
+                                    // Click: plain = set; ctrl = toggle rotation; shift = range-add to rotation
                                     MouseArea {
                                         id: _tileMa
                                         anchors.fill: parent
                                         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                        onClicked: WallpaperService.commit(_tile._path)
+                                        onClicked: (m) => {
+                                            if (m.modifiers & Qt.ControlModifier) {
+                                                WallpaperService.toggleRotation(_tile._path)
+                                                _wpPane._rotAnchor = _tile.index
+                                            } else if (m.modifiers & Qt.ShiftModifier) {
+                                                const list = _wpPane._shownList
+                                                const a = _wpPane._rotAnchor >= 0 ? _wpPane._rotAnchor : _tile.index
+                                                const lo = Math.min(a, _tile.index), hi = Math.max(a, _tile.index)
+                                                const r = (WallpaperService.rotationPaths || []).slice()
+                                                for (let i = lo; i <= hi; i++) {
+                                                    const pp = "" + list[i]
+                                                    if (r.indexOf(pp) < 0) r.push(pp)
+                                                }
+                                                WallpaperService.setRotation(r)
+                                            } else {
+                                                WallpaperService.commit(_tile._path)
+                                                _wpPane._rotAnchor = _tile.index
+                                            }
+                                        }
+                                    }
+                                    // Favorite button (on top of the tile MouseArea so it stays clickable)
+                                    WpTileBtn {
+                                        anchors { top: parent.top; right: parent.right; margins: 5 }
+                                        icon: WallpaperService.isFavorite(_tile._path) ? "󰋑" : "󰋕"
+                                        active: WallpaperService.isFavorite(_tile._path)
+                                        onClicked: WallpaperService.toggleFavorite(_tile._path)
                                     }
                                 }
                             }
@@ -1053,20 +1077,18 @@ PanelWindow {
                                             text: "󰇚"; color: "white"
                                             font.family: ThemeManager.fontFamily; font.pixelSize: 22
                                         }
-                                        // Favorite (download + favorite)
-                                        Row {
-                                            anchors { top: parent.top; right: parent.right; margins: 5 }
-                                            WpTileBtn {
-                                                icon: "󰋕"
-                                                onClicked: WallpaperService.download(_rtile.modelData.full, _rtile.modelData.id, _rtile.modelData.fileType, true)
-                                            }
-                                        }
                                         MouseArea {
                                             id: _rtMa; anchors.fill: parent
                                             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                             enabled: WallpaperService.canDownload && !_rtile._busy
                                             // Click = download + set
                                             onClicked: WallpaperService.download(_rtile.modelData.full, _rtile.modelData.id, _rtile.modelData.fileType, false)
+                                        }
+                                        // Favorite (download + favorite) — above the tile MouseArea so it stays clickable
+                                        WpTileBtn {
+                                            anchors { top: parent.top; right: parent.right; margins: 5 }
+                                            icon: "󰋕"
+                                            onClicked: WallpaperService.download(_rtile.modelData.full, _rtile.modelData.id, _rtile.modelData.fileType, true)
                                         }
                                     }
                                 }
@@ -1090,7 +1112,7 @@ PanelWindow {
                         SettingSection { text: "Rotation"; Layout.topMargin: 14 }
                         SettingRowBase {
                             label: "Rotate wallpapers"
-                            sub: WallpaperService.rotationPaths.length + " selected (toggle the ↻ on a wallpaper)"
+                            sub: WallpaperService.rotationPaths.length + " selected — Ctrl-click a wallpaper to add, Shift-click for a range"
                             Rectangle {
                                 implicitWidth: 40; implicitHeight: 22; radius: 11
                                 opacity: WallpaperService.rotationPaths.length > 1 ? 1 : 0.4

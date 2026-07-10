@@ -26,9 +26,10 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     anchors        { top: true; bottom: true; left: true; right: true }
     WlrLayershell.layer:         WlrLayer.Overlay
-    // Keyboard via the focus grab (delivers keys to the text fields and restores
-    // window focus automatically on close — no manual refocus bounce).
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    // This transient overlay must request keyboard itself (unlike the always-on
+    // shell layer, a focus grab alone won't pull keyboard to it). The grab is
+    // kept only so window focus is restored automatically on close.
+    WlrLayershell.keyboardFocus: active ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     HyprlandFocusGrab { windows: [root]; active: root.active }
 
     property bool _exiting: false

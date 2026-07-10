@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Widgets
+import Quickshell.Hyprland
 import Quickshell.Io
 import Caelestia.Blobs
 import "./bar"
@@ -158,15 +159,12 @@ PanelWindow {
     readonly property real _launcherY: root.height - _launcherH   // flush with bottom edge
 
     // Exclusive keyboard while the toolbar's keyboard mode OR the launcher is
-    // active. Hover popouts that contain text fields (dashboard calendar form,
-    // network password, bluetooth rename) take OnDemand focus instead — they can
-    // receive keys when a field is clicked, without stealing focus on hover.
+    // active. The dashboard's calendar form takes OnDemand focus (click-to-focus
+    // without stealing on hover). Text entry in the network/bluetooth context
+    // menu is handled by its own grabbed PopupWindow surface, not this layer.
     readonly property bool _popoutWantsKeys: PopoutService.hasCurrent
-        && (PopoutService.currentName === "dashboard"
-            || PopoutService.currentName === "network"
-            || PopoutService.currentName === "bluetooth")
-    WlrLayershell.keyboardFocus: (ToolsService.open || ToolsService.wpOpen
-            || root._launcherActive || PopoutService.keyboardActive)
+        && PopoutService.currentName === "dashboard"
+    WlrLayershell.keyboardFocus: (ToolsService.open || ToolsService.wpOpen || root._launcherActive)
         ? WlrKeyboardFocus.Exclusive
         : (_popoutWantsKeys ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None)
 
@@ -223,12 +221,6 @@ PanelWindow {
             x: 0; y: 0
             width:  root._trayMenuPinned ? root.width  : 0
             height: root._trayMenuPinned ? root.height : 0
-        }
-        // Full-screen region while a right-click context menu is open
-        Region {
-            x: 0; y: 0
-            width:  root._ctxOpen ? root.width  : 0
-            height: root._ctxOpen ? root.height : 0
         }
         // Tools notch / rail — reach the actual screen edge so pushing the mouse
         // into the border deploys it. (Width includes the border strip.)
@@ -403,9 +395,6 @@ PanelWindow {
     // others fade + scale out. Container size animates to active panel's size.
     Item {
         id: _popoutContainer
-        // Above the context-menu dismiss catcher (200) so right-clicking another
-        // row reaches it (reopening the menu) instead of just dismissing.
-        z:       201
         x:       root._popoutX
         y:       root._panelTop
         width:   root._popoutWidth
@@ -594,27 +583,33 @@ PanelWindow {
     }
 
     // ── Floating right-click context menu (network / bluetooth) ───────────────
+    // Its own PopupWindow surface + Hyprland focus grab: text fields get keyboard
+    // focus directly, clicking outside dismisses via onCleared, and window focus
+    // is restored automatically by the compositor (no manual refocus dance).
     readonly property bool _ctxOpen:
         ContextMenuService.open && ContextMenuService.screen?.name === root.modelData?.name
-    MouseArea {
-        anchors.fill: parent
+
+    PopupWindow {
+        id: _ctxWin
         visible: root._ctxOpen
-        z: 200
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
-        onPressed: ContextMenuService.close()
-    }
-    Loader {
-        id: _ctxMenuLoader
-        z: 202
-        active:  root._ctxOpen
-        visible: root._ctxOpen
-        source:  "panels/ContextMenu.qml"
-        x: Math.round(Math.min(Math.max(ThemeManager.borderWidth, ContextMenuService.anchorX),
-                               root.width - width - ThemeManager.borderWidth))
-        y: Math.round(Math.min(Math.max(ThemeManager.barHeight, ContextMenuService.anchorY),
-                               root.height - height - ThemeManager.borderWidth))
-        layer.enabled: true
-        layer.effect: Elevation { level: 4 }
+        color:   "transparent"
+        implicitWidth:  _ctxContent.implicitWidth
+        implicitHeight: _ctxContent.implicitHeight
+        // anchorX/anchorY are already window-space (mapped in the panel); clamp so
+        // the menu stays on-screen.
+        anchor.window: root
+        anchor.rect.x: Math.round(Math.min(Math.max(ThemeManager.borderWidth, ContextMenuService.anchorX),
+                                           root.width - implicitWidth - ThemeManager.borderWidth))
+        anchor.rect.y: Math.round(Math.min(Math.max(ThemeManager.barHeight, ContextMenuService.anchorY),
+                                           root.height - implicitHeight - ThemeManager.borderWidth))
+
+        ContextMenu { id: _ctxContent; anchors.fill: parent }
+
+        HyprlandFocusGrab {
+            windows: [_ctxWin]
+            active:  root._ctxOpen
+            onCleared: ContextMenuService.close()
+        }
     }
 
     // Click-outside dismiss while the toolbar is keyboard-open

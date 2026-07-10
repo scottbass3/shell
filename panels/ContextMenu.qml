@@ -54,7 +54,7 @@ Rectangle {
             label: root.target?.connected ? "Disconnect" : "Connect"
             // Unknown secured networks need a password (entered below) — for those
             // the Connect row is hidden and the user uses the field.
-            enabled: root.target?.connected || root.target?.known
+            enabled: (root.target?.connected || root.target?.known) ?? false
             onTriggered: {
                 if (root.target.connected) root.target.disconnect()
                 else root.target.connect()
@@ -81,7 +81,6 @@ Rectangle {
                     font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
                     echoMode: _reveal.checked ? TextInput.Normal : TextInput.Password
                     clip: true
-                    onActiveFocusChanged: PopoutService.keyboardActive = activeFocus
                     onAccepted: if (root.target) { root.target.connectWithPsk(text); ContextMenuService.close() }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
@@ -144,7 +143,6 @@ Rectangle {
                 font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
                 clip: true
                 text: (root.kind === "bt" && root.target) ? (root.target.name || root.target.deviceName || "") : ""
-                onActiveFocusChanged: PopoutService.keyboardActive = activeFocus
                 onAccepted: if (root.target) { root.target.name = text; focus = false }
             }
             Text {

@@ -30,7 +30,6 @@ QtObject {
         open = false
         target = null
         _profiles = []
-        PopoutService.keyboardActive = false
         PopoutService.pinned = false
     }
 

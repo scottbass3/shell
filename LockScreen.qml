@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
+import Quickshell.Widgets
 import "./theme"
 import "./services"
 
@@ -130,13 +131,30 @@ WlSessionLock {
             visible: opacity > 0
             Behavior on opacity { NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
 
-            // Avatar circle (optional flair)
-            Text {
+            // Avatar: ~/.face if present, else a glyph
+            ClippingRectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: "󰀄"
-                color: "white"
-                font.family: ThemeManager.fontFamily
-                font.pixelSize: 64
+                width: 96; height: 96; radius: width / 2
+                color: Qt.rgba(1, 1, 1, 0.12)
+                Image {
+                    id: _face
+                    anchors.fill: parent
+                    source: {
+                        const h = Quickshell.env("HOME")
+                        return h ? "file://" + h + "/.face" : ""
+                    }
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                    visible: status === Image.Ready
+                }
+                Text {
+                    anchors.centerIn: parent
+                    visible: _face.status !== Image.Ready
+                    text: "󰀄"
+                    color: "white"
+                    font.family: ThemeManager.fontFamily
+                    font.pixelSize: 64
+                }
             }
 
             // Username under the avatar

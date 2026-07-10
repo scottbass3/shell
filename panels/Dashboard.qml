@@ -49,6 +49,10 @@ Item {
     property string calSelectedDate: ""
     property bool   calCreating:     false
     onCalSelectedDateChanged: calCreating = false
+    // Grab the shell layer's keyboard (via PopoutService.textActive) only while
+    // the create form is open, so its text fields receive keys and focus is
+    // restored on close — without stealing keyboard on plain hover.
+    onCalCreatingChanged: PopoutService.textActive = calCreating
 
     // Pending dangerous power action awaiting confirmation ("" | "reboot" | "shutdown")
     property string _confirmAction: ""

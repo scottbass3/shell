@@ -18,6 +18,11 @@ QtObject {
     // Pinned = stay open regardless of hover (click-to-keep, e.g. notifications)
     property bool pinned: false
 
+    // Set true while a text field inside a hover popout is being edited (the
+    // dashboard calendar create form) so the shell layer's focus grab activates —
+    // keys reach the field and window focus is restored when it closes.
+    property bool textActive: false
+
     // Arbitrary per-popup payload (e.g. QsMenuHandle for tray menus)
     property var menuHandle: null
 
@@ -73,6 +78,7 @@ QtObject {
         widgetHovered = false
         panelHovered  = false
         pinned        = false
+        textActive    = false
         menuHandle    = null
         _closeTimer.stop()
     }

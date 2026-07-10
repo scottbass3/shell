@@ -158,15 +158,15 @@ PanelWindow {
     readonly property real _launcherX: Math.round((root.width - _launcherW) / 2)
     readonly property real _launcherY: root.height - _launcherH   // flush with bottom edge
 
-    // Keyboard for the launcher / tools-rail keyboard mode is delivered by the
-    // Hyprland focus grab below — grabbing this layer's surface routes keys to it
-    // and, crucially, restores window focus automatically when released (no manual
-    // refocus bounce). The dashboard calendar form takes OnDemand click-to-focus.
-    // Network/bluetooth text entry lives in its own grabbed PopupWindow surface.
-    readonly property bool _popoutWantsKeys: PopoutService.hasCurrent
-        && PopoutService.currentName === "dashboard"
-    readonly property bool _layerWantsKbd: ToolsService.open || ToolsService.wpOpen || root._launcherActive
-    WlrLayershell.keyboardFocus: _popoutWantsKeys ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    // Keyboard for the launcher / tools-rail keyboard mode and the dashboard
+    // calendar create form is delivered by the Hyprland focus grab below —
+    // grabbing this layer's surface routes keys to it and restores window focus
+    // automatically when released (no manual refocus bounce). textActive is set
+    // only while a hover-popout text field is actually being edited, so plain
+    // hover never grabs. Network/bluetooth text entry is its own PopupWindow.
+    readonly property bool _layerWantsKbd: ToolsService.open || ToolsService.wpOpen
+        || root._launcherActive || PopoutService.textActive
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     HyprlandFocusGrab { windows: [root]; active: root._layerWantsKbd }
 
     // Animated current width + height (notch nub ↔ rail), kept vertically centred

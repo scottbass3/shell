@@ -44,9 +44,10 @@ in QML, with liquid SDF panel corners that merge into a rounded screen frame.
   - Configurable bar widgets, tray, tools, weather, and dependency overview.
   - **Keybindings**: assign Hyprland shortcuts for the shell's actions in-app
     (unbound by default; applied live via a generated Lua bind file).
-  - **Hyprland**: tune monitors (resolution, scale, position, rotation),
+  - **Hyprland**: arrange monitors on a **visual drag canvas** (reposition +
+    edge-snap) and tune resolution / scale / rotation, plus
     appearance (gaps, borders, rounding, blur, shadow) and input (keyboard,
-    mouse, layout) as an **override layer** — only what you change is written
+    mouse, layout) — all as an **override layer**: only what you change is written
     (to a generated Lua file); your own config is never touched. Display changes
     confirm-or-revert on a countdown. Requires the Lua config (like Keybindings).
 - **Liquid panel corners** — panels are SDF metaballs that smooth-merge into a

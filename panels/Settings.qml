@@ -166,8 +166,8 @@ PanelWindow {
     // ── Card ────────────────────────────────────────────────────────────────--
     Rectangle {
         id: card
-        width:  Math.min(760, root.width - 80)
-        height: Math.min(560, root.height - 120)
+        width:  Math.min(920, root.width - 80)
+        height: Math.min(660, root.height - 120)
         anchors.centerIn: parent
         radius: ThemeManager.panelRadius + 4
         color:  ThemeManager.surfaceContainer
@@ -1214,170 +1214,319 @@ PanelWindow {
 
                         // ── Display tab ───────────────────────────────────────────
                         ColumnLayout {
+                            id: _dispTab
                             visible: root._hlTab === "display"
                             Layout.fillWidth: true
                             Layout.topMargin: 6
                             spacing: 8
 
-                            Repeater {
-                                model: HyprlandConfigService.monitors
-                                delegate: Rectangle {
-                                    id: _monCard
-                                    required property var modelData
-                                    readonly property string _mn: modelData.name
-                                    readonly property int _liveTransform: modelData.transform
-                                    property bool _modeOpen: false
-                                    function _get(k, d) { return SettingsService.get("hypr.monitors." + _mn + "." + k, d) }
-                                    readonly property bool _on: _get("enabled", !modelData.disabled)
-                                    Layout.fillWidth: true
-                                    implicitHeight: _mcol.implicitHeight + 20
-                                    radius: ThemeManager.chipRadius
-                                    color: ThemeManager.surfaceContainerLow
-                                    border.width: 1; border.color: ThemeManager.outlineVariant
+                            property string sel: ""
+                            property bool _detModeOpen: false
+                            // Selection with a fallback to the first monitor so the detail
+                            // panel always has a target (probe may finish after onCompleted).
+                            readonly property string effSel: {
+                                const ms = HyprlandConfigService.monitors
+                                if (sel !== "") for (const m of ms) if (m.name === sel) return sel
+                                return ms.length ? ms[0].name : ""
+                            }
 
-                                    ColumnLayout {
-                                        id: _mcol
-                                        anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
-                                        spacing: 8
+                            function mget(name, k, d) { return SettingsService.get("hypr.monitors." + name + "." + k, d) }
+                            function selMon() { for (const m of HyprlandConfigService.monitors) if (m.name === _dispTab.effSel) return m; return null }
 
-                                        RowLayout {
-                                            Layout.fillWidth: true
-                                            spacing: 8
+                            // Effective logical geometry for a monitor (staged override or live).
+                            // Logical size = mode pixels / scale, swapped for 90°/270° rotation.
+                            function mgeo(m) {
+                                void SettingsService.rev
+                                const modeStr = mget(m.name, "mode", m.width + "x" + m.height + "@" + Number(m.refreshRate).toFixed(2))
+                                const mm = ("" + modeStr).split("@")[0].split("x")
+                                let W = parseInt(mm[0]) || m.width, H = parseInt(mm[1]) || m.height
+                                const sc = parseFloat(mget(m.name, "scale", m.scale)) || 1
+                                const tr = parseInt(mget(m.name, "transform", m.transform)) || 0
+                                if (tr === 1 || tr === 3) { const t = W; W = H; H = t }
+                                return {
+                                    name: m.name,
+                                    on:   mget(m.name, "enabled", !m.disabled),
+                                    lx:   parseInt(mget(m.name, "x", m.x)) || 0,
+                                    ly:   parseInt(mget(m.name, "y", m.y)) || 0,
+                                    lw:   Math.max(1, Math.round(W / sc)),
+                                    lh:   Math.max(1, Math.round(H / sc))
+                                }
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: "Drag a screen to reposition it; it snaps to its neighbours' edges. Click to select and edit its settings below."
+                                wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
+                                font.family: ThemeManager.fontFamily; font.pixelSize: 10; opacity: 0.7
+                            }
+
+                            // ── Visual layout canvas ──────────────────────────────────
+                            Rectangle {
+                                id: _canvas
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 260
+                                radius: ThemeManager.chipRadius
+                                color: ThemeManager.surfaceContainerLow
+                                border.width: 1; border.color: ThemeManager.outlineVariant
+                                clip: true
+
+                                readonly property var _boxes: { void SettingsService.rev; return HyprlandConfigService.monitors.map(m => _dispTab.mgeo(m)) }
+                                readonly property real _pad: 18
+                                readonly property real _minX: _boxes.length ? Math.min(..._boxes.map(b => b.lx)) : 0
+                                readonly property real _minY: _boxes.length ? Math.min(..._boxes.map(b => b.ly)) : 0
+                                readonly property real _spanX: _boxes.length ? Math.max(1, Math.max(..._boxes.map(b => b.lx + b.lw)) - _minX) : 1
+                                readonly property real _spanY: _boxes.length ? Math.max(1, Math.max(..._boxes.map(b => b.ly + b.lh)) - _minY) : 1
+                                readonly property real k: Math.min((width - 2 * _pad) / _spanX, (height - 2 * _pad) / _spanY)
+                                readonly property real _offX: (width  - _spanX * k) / 2
+                                readonly property real _offY: (height - _spanY * k) / 2
+                                function px(lx) { return _offX + (lx - _minX) * k }
+                                function py(ly) { return _offY + (ly - _minY) * k }
+
+                                // Deselect when clicking empty canvas
+                                MouseArea { anchors.fill: parent; onClicked: {} }
+
+                                Repeater {
+                                    model: HyprlandConfigService.monitors
+                                    delegate: Rectangle {
+                                        id: _mtile
+                                        required property var modelData
+                                        readonly property string _mn: modelData.name
+                                        readonly property var b: _dispTab.mgeo(modelData)
+                                        readonly property bool _isSel: _dispTab.effSel === _mn
+                                        property real _grabX: 0
+                                        property real _grabY: 0
+                                        property int  _origX: 0
+                                        property int  _origY: 0
+                                        property bool _moved: false
+
+                                        x: _canvas.px(b.lx);  y: _canvas.py(b.ly)
+                                        width:  Math.max(24, b.lw * _canvas.k)
+                                        height: Math.max(18, b.lh * _canvas.k)
+                                        radius: 6
+                                        opacity: b.on ? 1 : 0.45
+                                        color: _isSel ? Qt.rgba(ThemeManager.primary.r, ThemeManager.primary.g, ThemeManager.primary.b, 0.28)
+                                                      : ThemeManager.surfaceContainerHigh
+                                        border.width: _isSel ? 2 : 1
+                                        border.color: _isSel ? ThemeManager.primary : ThemeManager.outlineVariant
+
+                                        Column {
+                                            anchors.centerIn: parent
+                                            spacing: 1
                                             Text {
-                                                text: modelData.name
+                                                anchors.horizontalCenter: parent.horizontalCenter
+                                                text: _mtile._mn
                                                 color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily
-                                                font.pixelSize: ThemeManager.fontSizeMd; font.bold: true
+                                                font.pixelSize: ThemeManager.fontSizeSm; font.bold: true
                                             }
                                             Text {
-                                                Layout.fillWidth: true
-                                                text: modelData.width + "×" + modelData.height + " @" + Number(modelData.refreshRate).toFixed(0) + "Hz"
-                                                color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: 10
-                                                elide: Text.ElideRight
-                                            }
-                                            Text { text: "On"; color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: 10 }
-                                            Rectangle {
-                                                implicitWidth: 40; implicitHeight: 22; radius: 11
-                                                color: _on ? ThemeManager.primary : ThemeManager.surfaceContainerHigh
-                                                Rectangle { width: 16; height: 16; radius: 8; y: 3; x: _on ? parent.width - width - 3 : 3
-                                                            color: _on ? ThemeManager.onPrimary : ThemeManager.onSurfaceVariant
-                                                            Behavior on x { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } } }
-                                                TapHandler { onTapped: HyprlandConfigService.stageMonitor(_mn, "enabled", !_on) }
+                                                anchors.horizontalCenter: parent.horizontalCenter
+                                                visible: _mtile.height > 34
+                                                text: _mtile.b.on ? (_mtile.b.lw + "×" + _mtile.b.lh) : "off"
+                                                color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: 9
                                             }
                                         }
 
-                                        // Resolution + refresh (inline expanding list)
-                                        ColumnLayout {
-                                            visible: _on
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.OpenHandCursor
+                                            onPressed: (m) => {
+                                                _dispTab.sel = _mtile._mn
+                                                _mtile._moved = false
+                                                const p = mapToItem(_canvas, m.x, m.y)
+                                                _mtile._grabX = p.x; _mtile._grabY = p.y
+                                                _mtile._origX = _mtile.b.lx; _mtile._origY = _mtile.b.ly
+                                            }
+                                            onPositionChanged: (m) => {
+                                                if (!pressed) return
+                                                const p = mapToItem(_canvas, m.x, m.y)
+                                                if (!_mtile._moved && Math.abs(p.x - _mtile._grabX) + Math.abs(p.y - _mtile._grabY) < 3) return
+                                                _mtile._moved = true
+                                                const nx = Math.round(_mtile._origX + (p.x - _mtile._grabX) / _canvas.k)
+                                                const ny = Math.round(_mtile._origY + (p.y - _mtile._grabY) / _canvas.k)
+                                                HyprlandConfigService.stageMonitor(_mtile._mn, "x", nx)
+                                                HyprlandConfigService.stageMonitor(_mtile._mn, "y", ny)
+                                            }
+                                            onReleased: { if (_mtile._moved) _dispTab.snap(_mtile._mn) }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Snap the given monitor's edges to its neighbours (kill gaps/overlap).
+                            function snap(name) {
+                                const me = mgeo(selMonBy(name))
+                                if (!me) return
+                                const others = HyprlandConfigService.monitors.filter(m => m.name !== name).map(m => mgeo(m))
+                                const th = Math.max(40, _canvas._spanX * 0.05)
+                                let nx = me.lx, ny = me.ly
+                                for (const o of others) {
+                                    // horizontal edge snapping
+                                    if (Math.abs((me.lx + me.lw) - o.lx) < th) nx = o.lx - me.lw
+                                    else if (Math.abs(me.lx - (o.lx + o.lw)) < th) nx = o.lx + o.lw
+                                    else if (Math.abs(me.lx - o.lx) < th) nx = o.lx
+                                    // vertical edge / top-align snapping
+                                    if (Math.abs((me.ly + me.lh) - o.ly) < th) ny = o.ly - me.lh
+                                    else if (Math.abs(me.ly - (o.ly + o.lh)) < th) ny = o.ly + o.lh
+                                    else if (Math.abs(me.ly - o.ly) < th) ny = o.ly
+                                }
+                                if (nx !== me.lx) HyprlandConfigService.stageMonitor(name, "x", nx)
+                                if (ny !== me.ly) HyprlandConfigService.stageMonitor(name, "y", ny)
+                            }
+                            function selMonBy(name) { for (const m of HyprlandConfigService.monitors) if (m.name === name) return m; return null }
+
+                            // ── Selected-monitor detail ───────────────────────────────
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.topMargin: 4
+                                visible: _dispTab.selMon() !== null
+                                implicitHeight: _detCol.implicitHeight + 24
+                                radius: ThemeManager.chipRadius
+                                color: ThemeManager.surfaceContainerLow
+                                border.width: 1; border.color: ThemeManager.outlineVariant
+
+                                readonly property var m: _dispTab.selMon()
+                                readonly property string _mn: m ? m.name : ""
+                                function _get(k, d) { return m ? SettingsService.get("hypr.monitors." + _mn + "." + k, d) : d }
+                                readonly property bool _on: m ? _get("enabled", !m.disabled) : true
+                                id: _det
+
+                                ColumnLayout {
+                                    id: _detCol
+                                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
+                                    spacing: 8
+
+                                    RowLayout {
+                                        Layout.fillWidth: true; spacing: 8
+                                        Text {
+                                            text: _det._mn
+                                            color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily
+                                            font.pixelSize: ThemeManager.fontSizeMd; font.bold: true
+                                        }
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: _det.m ? (_det.m.width + "×" + _det.m.height + " @" + Number(_det.m.refreshRate).toFixed(0) + "Hz") : ""
+                                            color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: 10
+                                            elide: Text.ElideRight
+                                        }
+                                        Text { text: "On"; color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: 10 }
+                                        Rectangle {
+                                            implicitWidth: 40; implicitHeight: 22; radius: 11
+                                            color: _det._on ? ThemeManager.primary : ThemeManager.surfaceContainerHigh
+                                            Rectangle { width: 16; height: 16; radius: 8; y: 3; x: _det._on ? parent.width - width - 3 : 3
+                                                        color: _det._on ? ThemeManager.onPrimary : ThemeManager.onSurfaceVariant
+                                                        Behavior on x { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } } }
+                                            TapHandler { onTapped: HyprlandConfigService.stageMonitor(_det._mn, "enabled", !_det._on) }
+                                        }
+                                    }
+
+                                    // Resolution (inline expanding)
+                                    ColumnLayout {
+                                        visible: _det._on
+                                        Layout.fillWidth: true
+                                        spacing: 4
+                                        RowLayout {
+                                            Layout.fillWidth: true; spacing: 8
+                                            Text { text: "Resolution"; color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
+                                            Item { Layout.fillWidth: true }
+                                            Rectangle {
+                                                implicitWidth: _detRes.implicitWidth + 26; implicitHeight: 28
+                                                radius: ThemeManager.chipRadius
+                                                color: ThemeManager.surfaceContainerHigh
+                                                border.width: 1; border.color: _dispTab._detModeOpen ? ThemeManager.primary : ThemeManager.outlineVariant
+                                                Text {
+                                                    id: _detRes; anchors.centerIn: parent
+                                                    text: (_det.m ? _det._get("mode", _det.m.width + "x" + _det.m.height + "@" + Number(_det.m.refreshRate).toFixed(2)) : "") + "  ▾"
+                                                    color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                                }
+                                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: _dispTab._detModeOpen = !_dispTab._detModeOpen }
+                                            }
+                                        }
+                                        Flow {
+                                            visible: _dispTab._detModeOpen
                                             Layout.fillWidth: true
                                             spacing: 4
-                                            RowLayout {
-                                                Layout.fillWidth: true
-                                                spacing: 8
-                                                Text { text: "Resolution"; color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
-                                                Item { Layout.fillWidth: true }
-                                                Rectangle {
-                                                    implicitWidth: _resTxt.implicitWidth + 26; implicitHeight: 28
+                                            Repeater {
+                                                model: (_dispTab._detModeOpen && _det.m) ? _det.m.modes : []
+                                                delegate: Rectangle {
+                                                    required property var modelData
+                                                    readonly property bool sel: _det._get("mode", "") === modelData
+                                                    implicitWidth: _dmo.implicitWidth + 16; implicitHeight: 24
                                                     radius: ThemeManager.chipRadius
-                                                    color: ThemeManager.surfaceContainerHigh
-                                                    border.width: 1; border.color: _monCard._modeOpen ? ThemeManager.primary : ThemeManager.outlineVariant
-                                                    Text {
-                                                        id: _resTxt; anchors.centerIn: parent
-                                                        text: _get("mode", modelData.width + "x" + modelData.height + "@" + Number(modelData.refreshRate).toFixed(2)) + "  ▾"
-                                                        color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                                                    }
-                                                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: _modeOpen = !_modeOpen }
-                                                }
-                                            }
-                                            // Mode options
-                                            Flow {
-                                                visible: _modeOpen
-                                                Layout.fillWidth: true
-                                                spacing: 4
-                                                Repeater {
-                                                    model: _modeOpen ? modelData.modes : []
-                                                    delegate: Rectangle {
-                                                        required property var modelData
-                                                        readonly property bool sel: _get("mode", "") === modelData
-                                                        implicitWidth: _mo.implicitWidth + 16; implicitHeight: 24
-                                                        radius: ThemeManager.chipRadius
-                                                        color: sel ? Qt.rgba(ThemeManager.primary.r, ThemeManager.primary.g, ThemeManager.primary.b, 0.18) : ThemeManager.surfaceContainerHigh
-                                                        border.width: 1; border.color: ThemeManager.outlineVariant
-                                                        Text { id: _mo; anchors.centerIn: parent; text: modelData
-                                                               color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: 10 }
-                                                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                                                    onClicked: { HyprlandConfigService.stageMonitor(_mn, "mode", modelData); _modeOpen = false } }
-                                                    }
+                                                    color: sel ? Qt.rgba(ThemeManager.primary.r, ThemeManager.primary.g, ThemeManager.primary.b, 0.18) : ThemeManager.surfaceContainerHigh
+                                                    border.width: 1; border.color: ThemeManager.outlineVariant
+                                                    Text { id: _dmo; anchors.centerIn: parent; text: modelData
+                                                           color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: 10 }
+                                                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                                                onClicked: { HyprlandConfigService.stageMonitor(_det._mn, "mode", modelData); _dispTab._detModeOpen = false } }
                                                 }
                                             }
                                         }
+                                    }
 
-                                        // Scale + position + transform
-                                        GridLayout {
-                                            visible: _on
-                                            Layout.fillWidth: true
-                                            columns: 2
-                                            columnSpacing: 12
-                                            rowSpacing: 6
+                                    // Scale + position + rotation
+                                    GridLayout {
+                                        visible: _det._on
+                                        Layout.fillWidth: true
+                                        columns: 2; columnSpacing: 12; rowSpacing: 6
 
-                                            Text { text: "Scale"; color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
+                                        Text { text: "Scale"; color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
+                                        TextField {
+                                            Layout.preferredWidth: 90; implicitHeight: 28
+                                            text: _det.m ? "" + _det._get("scale", _det.m.scale) : ""
+                                            color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                            leftPadding: 8; rightPadding: 8
+                                            background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
+                                                                    border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
+                                            onEditingFinished: { const v = parseFloat(text); if (!isNaN(v)) HyprlandConfigService.stageMonitor(_det._mn, "scale", v) }
+                                        }
+
+                                        Text { text: "Position (x, y)"; color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
+                                        RowLayout {
+                                            spacing: 6
                                             TextField {
-                                                Layout.preferredWidth: 90; implicitHeight: 28
-                                                text: "" + _get("scale", modelData.scale)
+                                                Layout.preferredWidth: 70; implicitHeight: 28
+                                                text: _det.m ? "" + _det._get("x", _det.m.x) : ""
                                                 color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
                                                 leftPadding: 8; rightPadding: 8
                                                 background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
                                                                         border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
-                                                onEditingFinished: { const v = parseFloat(text); if (!isNaN(v)) HyprlandConfigService.stageMonitor(_mn, "scale", v) }
+                                                onEditingFinished: { const v = parseInt(text); if (!isNaN(v)) HyprlandConfigService.stageMonitor(_det._mn, "x", v) }
                                             }
-
-                                            Text { text: "Position (x, y)"; color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
-                                            RowLayout {
-                                                spacing: 6
-                                                TextField {
-                                                    Layout.preferredWidth: 70; implicitHeight: 28
-                                                    text: "" + _get("x", modelData.x)
-                                                    color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                                                    leftPadding: 8; rightPadding: 8
-                                                    background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
-                                                                            border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
-                                                    onEditingFinished: { const v = parseInt(text); if (!isNaN(v)) HyprlandConfigService.stageMonitor(_mn, "x", v) }
-                                                }
-                                                TextField {
-                                                    Layout.preferredWidth: 70; implicitHeight: 28
-                                                    text: "" + _get("y", modelData.y)
-                                                    color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                                                    leftPadding: 8; rightPadding: 8
-                                                    background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
-                                                                            border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
-                                                    onEditingFinished: { const v = parseInt(text); if (!isNaN(v)) HyprlandConfigService.stageMonitor(_mn, "y", v) }
-                                                }
-                                            }
-
-                                            Text { text: "Rotation"; color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
-                                            Row {
-                                                spacing: 0
-                                                Repeater {
-                                                    model: [ "0°", "90°", "180°", "270°" ]
-                                                    delegate: Rectangle {
-                                                        required property var modelData
-                                                        required property int index
-                                                        readonly property bool sel: _monCard._get("transform", _monCard._liveTransform) === index
-                                                        implicitWidth: _tr.implicitWidth + 18; implicitHeight: 26
-                                                        color: sel ? ThemeManager.primary : ThemeManager.surfaceContainerHigh
-                                                        border.width: 1; border.color: ThemeManager.outlineVariant
-                                                        Text { id: _tr; anchors.centerIn: parent; text: modelData
-                                                               color: sel ? ThemeManager.onPrimary : ThemeManager.onSurfaceVariant
-                                                               font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
-                                                        TapHandler { onTapped: HyprlandConfigService.stageMonitor(_mn, "transform", index) }
-                                                    }
-                                                }
+                                            TextField {
+                                                Layout.preferredWidth: 70; implicitHeight: 28
+                                                text: _det.m ? "" + _det._get("y", _det.m.y) : ""
+                                                color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                                leftPadding: 8; rightPadding: 8
+                                                background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
+                                                                        border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
+                                                onEditingFinished: { const v = parseInt(text); if (!isNaN(v)) HyprlandConfigService.stageMonitor(_det._mn, "y", v) }
                                             }
                                         }
 
-                                        SettingBtn {
-                                            label: "Reset this monitor"; danger: true
-                                            onClicked: HyprlandConfigService.resetMonitor(_mn)
+                                        Text { text: "Rotation"; color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
+                                        Row {
+                                            spacing: 0
+                                            Repeater {
+                                                model: [ "0°", "90°", "180°", "270°" ]
+                                                delegate: Rectangle {
+                                                    required property var modelData
+                                                    required property int index
+                                                    readonly property bool sel: _det.m ? (_det._get("transform", _det.m.transform) === index) : false
+                                                    implicitWidth: _dtr.implicitWidth + 18; implicitHeight: 26
+                                                    color: sel ? ThemeManager.primary : ThemeManager.surfaceContainerHigh
+                                                    border.width: 1; border.color: ThemeManager.outlineVariant
+                                                    Text { id: _dtr; anchors.centerIn: parent; text: modelData
+                                                           color: sel ? ThemeManager.onPrimary : ThemeManager.onSurfaceVariant
+                                                           font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
+                                                    TapHandler { onTapped: HyprlandConfigService.stageMonitor(_det._mn, "transform", index) }
+                                                }
+                                            }
                                         }
+                                    }
+
+                                    SettingBtn {
+                                        label: "Reset this monitor"; danger: true
+                                        onClicked: HyprlandConfigService.resetMonitor(_det._mn)
                                     }
                                 }
                             }

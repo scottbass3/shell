@@ -105,8 +105,9 @@ QtObject {
     // theme — the active theme is persisted separately by ThemeManager, so
     // running matugen here would clobber a theme the user kept.
     function _restore(path) {
-        if (!path || !available) return
-        current = path
+        if (!path) return
+        current = path                 // track it regardless (drives lock-screen sync)
+        if (!available) return         // can't apply without hyprpaper
         _live.command = ["sh", "-c", _liveScript, "sh", path]
         _live.running = true
     }

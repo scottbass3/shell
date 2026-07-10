@@ -2,6 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell.Io
 import Quickshell.Services.Pam
+import "."
 
 // Lock state + PAM authentication for the custom WlSessionLock screen.
 QtObject {
@@ -12,8 +13,12 @@ QtObject {
     property string error:  ""
     property string _pw:    ""
 
-    // Wallpaper path (read from hyprpaper.conf; fallback below)
-    property string wallpaper: ""
+    // Live current wallpaper so the lock screen stays in sync with changes /
+    // rotation. Falls back to the hyprpaper.conf entry when the service hasn't
+    // resolved one (e.g. hyprpaper absent).
+    readonly property string wallpaper:
+        WallpaperService.current !== "" ? WallpaperService.current : _confWallpaper
+    property string _confWallpaper: ""
 
     // Current username (for the prompt)
     property string userName: ""
@@ -51,13 +56,14 @@ QtObject {
         onError: (msg) => { root.busy = false; root._pw = ""; root.error = "Erreur d'authentification" }
     }
 
-    // Pull first wallpaper entry from hyprpaper.conf
+    // Fallback: first wallpaper entry from hyprpaper.conf (used only until the
+    // WallpaperService resolves a live path).
     property Process _wp: Process {
         command: ["sh", "-c",
             "grep -m1 '^wallpaper' ~/.config/hypr/hyprpaper.conf 2>/dev/null | sed 's/.*,//' | tr -d ' '"]
         running: true
         stdout: StdioCollector {
-            onStreamFinished: { const p = text.trim(); if (p !== "") root.wallpaper = p }
+            onStreamFinished: { const p = text.trim(); if (p !== "") root._confWallpaper = p }
         }
     }
 }

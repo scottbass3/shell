@@ -6,7 +6,8 @@ import Quickshell.Hyprland
 import "."
 
 // Open/close state for the Settings window (centered modal). Opens on the
-// focused monitor; restores keyboard focus on close (shared bounce script).
+// focused monitor. Keyboard + focus restore are handled by the window's
+// HyprlandFocusGrab (see Settings.qml).
 QtObject {
     id: root
 
@@ -16,18 +17,7 @@ QtObject {
 
     function _focusedName() { return Hyprland.focusedMonitor?.name ?? "" }
 
-    property string _prevWin: ""
-
-    function show() {
-        screenName = _focusedName()
-        _prevWin = FocusService.savePrev()
-        open = true
-    }
-    function hide() { open = false; _refocusTimer.restart() }
+    function show() { screenName = _focusedName(); open = true }
+    function hide() { open = false }
     function toggle() { if (open) hide(); else show() }
-
-    property Timer _refocusTimer: Timer {
-        interval: 140
-        onTriggered: FocusService.refocus(root._prevWin)
-    }
 }

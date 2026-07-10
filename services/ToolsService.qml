@@ -34,10 +34,9 @@ QtObject {
     property string _origTheme: ""
     property bool   _committing: false
 
-    property string _prevWin: ""   // window focused before the rail grabbed keys
-
+    // Keyboard + focus restore handled by MainWindow's HyprlandFocusGrab.
     function toggle() { if (open || wpOpen) close(); else openKbd() }
-    function openKbd() { _prevWin = FocusService.savePrev(); open = true; wpOpen = false; selected = 0 }
+    function openKbd() { open = true; wpOpen = false; selected = 0 }
     function close()   { open = false; wpOpen = false }
 
     // ── Wallpaper preview lifecycle ───────────────────────────────────────────

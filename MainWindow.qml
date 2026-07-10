@@ -158,20 +158,16 @@ PanelWindow {
     readonly property real _launcherX: Math.round((root.width - _launcherW) / 2)
     readonly property real _launcherY: root.height - _launcherH   // flush with bottom edge
 
-    // Exclusive keyboard while the toolbar's keyboard mode OR the launcher is
-    // active. The dashboard's calendar form takes OnDemand focus (click-to-focus
-    // without stealing on hover). Text entry in the network/bluetooth context
-    // menu is handled by its own grabbed PopupWindow surface, not this layer.
+    // Keyboard for the launcher / tools-rail keyboard mode is delivered by the
+    // Hyprland focus grab below — grabbing this layer's surface routes keys to it
+    // and, crucially, restores window focus automatically when released (no manual
+    // refocus bounce). The dashboard calendar form takes OnDemand click-to-focus.
+    // Network/bluetooth text entry lives in its own grabbed PopupWindow surface.
     readonly property bool _popoutWantsKeys: PopoutService.hasCurrent
         && PopoutService.currentName === "dashboard"
-    WlrLayershell.keyboardFocus: (ToolsService.open || ToolsService.wpOpen || root._launcherActive)
-        ? WlrKeyboardFocus.Exclusive
-        : (_popoutWantsKeys ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None)
-
-    // Hyprland doesn't auto-restore window keyboard focus after a layer releases
-    // its exclusive grab — re-assert focus on the previously focused window.
-    on_ToolsKbdActiveChanged: if (!_toolsKbdActive) _refocusTimer.restart()
-    Timer { id: _refocusTimer; interval: 60; onTriggered: FocusService.refocus(ToolsService._prevWin) }
+    readonly property bool _layerWantsKbd: ToolsService.open || ToolsService.wpOpen || root._launcherActive
+    WlrLayershell.keyboardFocus: _popoutWantsKeys ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    HyprlandFocusGrab { windows: [root]; active: root._layerWantsKbd }
 
     // Animated current width + height (notch nub ↔ rail), kept vertically centred
     property real _toolsW: _toolsShow ? _toolsRailW : _toolsNotchW

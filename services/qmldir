@@ -21,6 +21,5 @@ singleton DependencyService  1.0 DependencyService.qml
 singleton SettingsUi         1.0 SettingsUi.qml
 singleton Paths               1.0 Paths.qml
 singleton BindingService     1.0 BindingService.qml
-singleton FocusService       1.0 FocusService.qml
 singleton ContextMenuService 1.0 ContextMenuService.qml
 singleton WallhavenService   1.0 WallhavenService.qml

@@ -4,6 +4,7 @@ import QtQuick.Controls
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Widgets
+import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Services.SystemTray
 import "../theme"
@@ -25,7 +26,10 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     anchors        { top: true; bottom: true; left: true; right: true }
     WlrLayershell.layer:         WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: active ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    // Keyboard via the focus grab (delivers keys to the text fields and restores
+    // window focus automatically on close — no manual refocus bounce).
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    HyprlandFocusGrab { windows: [root]; active: root.active }
 
     property bool _exiting: false
     onActiveChanged: { if (active) _exiting = false; else if (visible) { _exiting = true; _exitTimer.restart() } }

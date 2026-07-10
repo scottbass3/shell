@@ -20,27 +20,16 @@ QtObject {
         return m?.name ?? ""
     }
 
-    property string _prevWin: ""   // window focused before our layer grabbed
-
+    // Keyboard + automatic focus restore are handled by MainWindow's
+    // HyprlandFocusGrab while the launcher is open.
     function show() {
         screenName = _focusedName()
         query = ""
-        // Save the window focused before our layer grabs the keyboard, so we can
-        // hand focus back on close.
-        _prevWin = FocusService.savePrev()
         open = true
     }
     function hide() {
         open = false
         query = ""
-        _refocusTimer.restart()
     }
     function toggle() { if (open) hide(); else show() }
-
-    // ── Keyboard focus restore (Hyprland won't auto-restore after the layer
-    //    releases its exclusive keyboard grab) ──────────────────────────────--
-    property Timer _refocusTimer: Timer {
-        interval: 140
-        onTriggered: FocusService.refocus(root._prevWin)
-    }
 }

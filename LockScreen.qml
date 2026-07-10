@@ -216,11 +216,18 @@ WlSessionLock {
             onClicked: surf.reveal()
         }
 
-        // Keyboard focus catcher (idle). Any key reveals the prompt.
+        // Keyboard focus catcher (idle). Any key reveals the prompt; a printable
+        // character also seeds the password field so typing starts immediately
+        // (non-printable keys — modifiers, Enter, Escape… — only reveal).
         Item {
             anchors.fill: parent
             focus: !surf.showPrompt
-            Keys.onPressed: (e) => { surf.reveal(); e.accepted = true }
+            Keys.onPressed: (e) => {
+                surf.reveal()
+                if (e.text.length === 1 && e.text.charCodeAt(0) >= 0x20)
+                    _pwInput.text += e.text
+                e.accepted = true
+            }
         }
     }
 }

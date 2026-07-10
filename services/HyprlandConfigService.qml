@@ -215,6 +215,34 @@ QtObject {
     // Appearance / input: apply immediately.
     function applyLive() { _write(true) }
 
+    // hl.monitor(...) line (effective override-or-live values) for a monitor —
+    // emitted for EVERY output so a revert also restores un-overridden ones.
+    // Applied LIVE via `hyprctl eval`, which reconfigures the output WITHOUT a
+    // full `hyprctl reload`. A reload re-lays-out every layer surface (the bar's
+    // reserved zone doesn't re-settle while the fullscreen Settings overlay is
+    // mapped), so monitor edits must avoid it. (`hyprctl keyword` is refused
+    // under the Lua parser — eval is the supported live path.)
+    function _monitorEvalLine(m) {
+        const base = "hypr.monitors." + m.name + "."
+        if (SettingsService.get(base + "enabled", !m.disabled) === false)
+            return 'hl.monitor({ output = "' + m.name + '", disable = true })'
+        const defMode = m.width + "x" + m.height + "@" + Number(m.refreshRate).toFixed(2)
+        const mode  = SettingsService.get(base + "mode",  defMode)
+        const scale = SettingsService.get(base + "scale", m.scale)
+        const x     = SettingsService.get(base + "x",     m.x)
+        const y     = SettingsService.get(base + "y",     m.y)
+        const tr    = SettingsService.get(base + "transform", m.transform)
+        return 'hl.monitor({ output = "' + m.name + '", mode = "' + mode + '", position = "'
+             + x + "x" + y + '", scale = ' + scale + ", transform = " + tr + " })"
+    }
+    property Process _monLive: Process { running: false }
+    function _applyMonitorsLive() {
+        if (monitors.length === 0) return
+        _monLive.command = ["hyprctl", "eval", monitors.map(m => _monitorEvalLine(m)).join("\n")]
+        _monLive.running = false
+        _monLive.running = true
+    }
+
     // Reset one override key back to the user's own config (removes it, reloads).
     function resetKey(path) { SettingsService.unset("hypr." + path); applyLive() }
     function resetKeys(paths) { for (const p of paths) SettingsService.unset("hypr." + p); applyLive() }
@@ -237,7 +265,8 @@ QtObject {
 
     function applyMonitors() {
         if (!_monDirty) return
-        _write(true)
+        _write(false)           // persist for next launch; no reload
+        _applyMonitorsLive()    // live via keyword — no bar reflow
         monitorCountdown      = 15
         monitorConfirmPending = true
     }
@@ -246,7 +275,8 @@ QtObject {
         monitorConfirmPending = false
         _monDirty = false
         SettingsService.set("hypr.monitors", _prevMon)
-        _write(true)
+        _write(false)
+        _applyMonitorsLive()    // re-apply effective (restored) values to all outputs
         refresh()
     }
 

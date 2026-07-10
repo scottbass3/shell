@@ -44,6 +44,25 @@ QtObject {
     }
 
     function toggle(path, def) { set(path, !get(path, def)) }
+
+    // Remove a key entirely (so get() falls back to the caller's default) —
+    // distinct from set(path, someDefault), which pins the value. Used by the
+    // Hyprland override pane to revert one setting to the user's own config.
+    function unset(path) {
+        const parts = path.split(".")
+        const d = JSON.parse(JSON.stringify(_data || {}))   // deep clone
+        let o = d
+        for (let i = 0; i < parts.length - 1; i++) {
+            if (typeof o[parts[i]] !== "object" || o[parts[i]] === null) return  // nothing to remove
+            o = o[parts[i]]
+        }
+        if (o[parts[parts.length - 1]] === undefined) return
+        delete o[parts[parts.length - 1]]
+        _data = d
+        rev++
+        _save()
+    }
+
     function reset() { _data = ({}); rev++; _save() }
 
     // ── Persistence ─────────────────────────────────────────────────────────--

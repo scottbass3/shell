@@ -44,6 +44,11 @@ in QML, with liquid SDF panel corners that merge into a rounded screen frame.
   - Configurable bar widgets, tray, tools, weather, and dependency overview.
   - **Keybindings**: assign Hyprland shortcuts for the shell's actions in-app
     (unbound by default; applied live via a generated Lua bind file).
+  - **Hyprland**: tune monitors (resolution, scale, position, rotation),
+    appearance (gaps, borders, rounding, blur, shadow) and input (keyboard,
+    mouse, layout) as an **override layer** — only what you change is written
+    (to a generated Lua file); your own config is never touched. Display changes
+    confirm-or-revert on a countdown. Requires the Lua config (like Keybindings).
 - **Liquid panel corners** — panels are SDF metaballs that smooth-merge into a
   rounded screen frame as they deploy.
 - **Per-monitor workspaces** — every screen gets its own 1–10 range, with
@@ -130,7 +135,8 @@ loadfile(os.getenv("HOME") .. "/.config/quickshell/hypr/quickshell.lua")()
 
 This sets `misc.allow_session_lock_restore`, autostarts the shell, binds the
 per-monitor workspaces (`SUPER + 1..0`, Shift = move window), and sources the
-generated shell-action binds.
+generated shell-action binds plus the Settings → Hyprland override file — both
+loaded last so they layer over your own config without overwriting it.
 
 **Shell-action shortcuts** (app launcher, settings, lock, tools, scratchpad) are
 **unbound by default**. Set them in **Settings → Keybindings** — each saved combo

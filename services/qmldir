@@ -23,3 +23,4 @@ singleton Paths               1.0 Paths.qml
 singleton BindingService     1.0 BindingService.qml
 singleton ContextMenuService 1.0 ContextMenuService.qml
 singleton WallhavenService   1.0 WallhavenService.qml
+singleton HyprlandConfigService 1.0 HyprlandConfigService.qml

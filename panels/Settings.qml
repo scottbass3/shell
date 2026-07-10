@@ -143,12 +143,16 @@ PanelWindow {
         { id: "tray",         label: "Tray",         icon: "󰍡" },
         { id: "tools",        label: "Tools",        icon: "󱁤" },
         { id: "wallpaper",    label: "Wallpaper",    icon: "󰸉" },
+        { id: "hyprland",     label: "Hyprland",     icon: "󰍹" },
         { id: "dependencies", label: "Dependencies", icon: "󰏖" },
         { id: "advanced",     label: "Advanced",     icon: "󰒓" }
     ]
 
     // Wallpaper pane: active sub-tab ("local" | "favorites" | "browse")
     property string _wpTab: "local"
+
+    // Hyprland pane: active sub-tab ("display" | "appearance" | "input")
+    property string _hlTab: "display"
 
     // ── Scrim ───────────────────────────────────────────────────────────────--
     Rectangle {
@@ -1167,6 +1171,296 @@ PanelWindow {
                         }
                     }
 
+                    // Hyprland ------------------------------------------------------
+                    ColumnLayout {
+                        id: _hlPane
+                        visible: SettingsUi.category === "hyprland"
+                        Layout.fillWidth: true
+                        Layout.margins: 20
+                        spacing: 6
+
+                        SettingSection { text: "Hyprland" }
+                        Text {
+                            Layout.fillWidth: true; Layout.bottomMargin: 4
+                            text: "Override monitors, appearance and input on top of your own Hyprland config. Only what you change here is written (to hypr.generated.lua); your config is untouched. Requires hypr/quickshell.lua (Lua config)."
+                            wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
+                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                        }
+
+                        // ── Sub-tabs ──────────────────────────────────────────────
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+                            Repeater {
+                                model: [ { id: "display", label: "Display" }, { id: "appearance", label: "Appearance" }, { id: "input", label: "Input" } ]
+                                delegate: Rectangle {
+                                    required property var modelData
+                                    readonly property bool sel: root._hlTab === modelData.id
+                                    implicitWidth: _htl.implicitWidth + 24; implicitHeight: 30
+                                    radius: ThemeManager.chipRadius
+                                    color: sel ? Qt.rgba(ThemeManager.primary.r, ThemeManager.primary.g, ThemeManager.primary.b, 0.18)
+                                               : (_htMa.containsMouse ? Qt.rgba(ThemeManager.onSurface.r, ThemeManager.onSurface.g, ThemeManager.onSurface.b, 0.08) : "transparent")
+                                    Text {
+                                        id: _htl; anchors.centerIn: parent; text: modelData.label
+                                        color: parent.sel ? ThemeManager.primary : ThemeManager.onSurface
+                                        font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                    }
+                                    MouseArea { id: _htMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root._hlTab = modelData.id }
+                                }
+                            }
+                            Item { Layout.fillWidth: true }
+                            SettingBtn { label: "Refresh"; onClicked: HyprlandConfigService.refresh() }
+                        }
+
+                        // ── Display tab ───────────────────────────────────────────
+                        ColumnLayout {
+                            visible: root._hlTab === "display"
+                            Layout.fillWidth: true
+                            Layout.topMargin: 6
+                            spacing: 8
+
+                            Repeater {
+                                model: HyprlandConfigService.monitors
+                                delegate: Rectangle {
+                                    id: _monCard
+                                    required property var modelData
+                                    readonly property string _mn: modelData.name
+                                    readonly property int _liveTransform: modelData.transform
+                                    property bool _modeOpen: false
+                                    function _get(k, d) { return SettingsService.get("hypr.monitors." + _mn + "." + k, d) }
+                                    readonly property bool _on: _get("enabled", !modelData.disabled)
+                                    Layout.fillWidth: true
+                                    implicitHeight: _mcol.implicitHeight + 20
+                                    radius: ThemeManager.chipRadius
+                                    color: ThemeManager.surfaceContainerLow
+                                    border.width: 1; border.color: ThemeManager.outlineVariant
+
+                                    ColumnLayout {
+                                        id: _mcol
+                                        anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
+                                        spacing: 8
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 8
+                                            Text {
+                                                text: modelData.name
+                                                color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily
+                                                font.pixelSize: ThemeManager.fontSizeMd; font.bold: true
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: modelData.width + "×" + modelData.height + " @" + Number(modelData.refreshRate).toFixed(0) + "Hz"
+                                                color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: 10
+                                                elide: Text.ElideRight
+                                            }
+                                            Text { text: "On"; color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: 10 }
+                                            Rectangle {
+                                                implicitWidth: 40; implicitHeight: 22; radius: 11
+                                                color: _on ? ThemeManager.primary : ThemeManager.surfaceContainerHigh
+                                                Rectangle { width: 16; height: 16; radius: 8; y: 3; x: _on ? parent.width - width - 3 : 3
+                                                            color: _on ? ThemeManager.onPrimary : ThemeManager.onSurfaceVariant
+                                                            Behavior on x { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } } }
+                                                TapHandler { onTapped: HyprlandConfigService.stageMonitor(_mn, "enabled", !_on) }
+                                            }
+                                        }
+
+                                        // Resolution + refresh (inline expanding list)
+                                        ColumnLayout {
+                                            visible: _on
+                                            Layout.fillWidth: true
+                                            spacing: 4
+                                            RowLayout {
+                                                Layout.fillWidth: true
+                                                spacing: 8
+                                                Text { text: "Resolution"; color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
+                                                Item { Layout.fillWidth: true }
+                                                Rectangle {
+                                                    implicitWidth: _resTxt.implicitWidth + 26; implicitHeight: 28
+                                                    radius: ThemeManager.chipRadius
+                                                    color: ThemeManager.surfaceContainerHigh
+                                                    border.width: 1; border.color: _monCard._modeOpen ? ThemeManager.primary : ThemeManager.outlineVariant
+                                                    Text {
+                                                        id: _resTxt; anchors.centerIn: parent
+                                                        text: _get("mode", modelData.width + "x" + modelData.height + "@" + Number(modelData.refreshRate).toFixed(2)) + "  ▾"
+                                                        color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                                    }
+                                                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: _modeOpen = !_modeOpen }
+                                                }
+                                            }
+                                            // Mode options
+                                            Flow {
+                                                visible: _modeOpen
+                                                Layout.fillWidth: true
+                                                spacing: 4
+                                                Repeater {
+                                                    model: _modeOpen ? modelData.modes : []
+                                                    delegate: Rectangle {
+                                                        required property var modelData
+                                                        readonly property bool sel: _get("mode", "") === modelData
+                                                        implicitWidth: _mo.implicitWidth + 16; implicitHeight: 24
+                                                        radius: ThemeManager.chipRadius
+                                                        color: sel ? Qt.rgba(ThemeManager.primary.r, ThemeManager.primary.g, ThemeManager.primary.b, 0.18) : ThemeManager.surfaceContainerHigh
+                                                        border.width: 1; border.color: ThemeManager.outlineVariant
+                                                        Text { id: _mo; anchors.centerIn: parent; text: modelData
+                                                               color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: 10 }
+                                                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                                                    onClicked: { HyprlandConfigService.stageMonitor(_mn, "mode", modelData); _modeOpen = false } }
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        // Scale + position + transform
+                                        GridLayout {
+                                            visible: _on
+                                            Layout.fillWidth: true
+                                            columns: 2
+                                            columnSpacing: 12
+                                            rowSpacing: 6
+
+                                            Text { text: "Scale"; color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
+                                            TextField {
+                                                Layout.preferredWidth: 90; implicitHeight: 28
+                                                text: "" + _get("scale", modelData.scale)
+                                                color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                                leftPadding: 8; rightPadding: 8
+                                                background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
+                                                                        border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
+                                                onEditingFinished: { const v = parseFloat(text); if (!isNaN(v)) HyprlandConfigService.stageMonitor(_mn, "scale", v) }
+                                            }
+
+                                            Text { text: "Position (x, y)"; color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
+                                            RowLayout {
+                                                spacing: 6
+                                                TextField {
+                                                    Layout.preferredWidth: 70; implicitHeight: 28
+                                                    text: "" + _get("x", modelData.x)
+                                                    color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                                    leftPadding: 8; rightPadding: 8
+                                                    background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
+                                                                            border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
+                                                    onEditingFinished: { const v = parseInt(text); if (!isNaN(v)) HyprlandConfigService.stageMonitor(_mn, "x", v) }
+                                                }
+                                                TextField {
+                                                    Layout.preferredWidth: 70; implicitHeight: 28
+                                                    text: "" + _get("y", modelData.y)
+                                                    color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                                    leftPadding: 8; rightPadding: 8
+                                                    background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
+                                                                            border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
+                                                    onEditingFinished: { const v = parseInt(text); if (!isNaN(v)) HyprlandConfigService.stageMonitor(_mn, "y", v) }
+                                                }
+                                            }
+
+                                            Text { text: "Rotation"; color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
+                                            Row {
+                                                spacing: 0
+                                                Repeater {
+                                                    model: [ "0°", "90°", "180°", "270°" ]
+                                                    delegate: Rectangle {
+                                                        required property var modelData
+                                                        required property int index
+                                                        readonly property bool sel: _monCard._get("transform", _monCard._liveTransform) === index
+                                                        implicitWidth: _tr.implicitWidth + 18; implicitHeight: 26
+                                                        color: sel ? ThemeManager.primary : ThemeManager.surfaceContainerHigh
+                                                        border.width: 1; border.color: ThemeManager.outlineVariant
+                                                        Text { id: _tr; anchors.centerIn: parent; text: modelData
+                                                               color: sel ? ThemeManager.onPrimary : ThemeManager.onSurfaceVariant
+                                                               font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
+                                                        TapHandler { onTapped: HyprlandConfigService.stageMonitor(_mn, "transform", index) }
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        SettingBtn {
+                                            label: "Reset this monitor"; danger: true
+                                            onClicked: HyprlandConfigService.resetMonitor(_mn)
+                                        }
+                                    }
+                                }
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Layout.topMargin: 4
+                                spacing: 10
+                                SettingBtn {
+                                    label: "Apply display changes"
+                                    enabled: HyprlandConfigService.monitorsDirty
+                                    onClicked: HyprlandConfigService.applyMonitors()
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: "Display changes ask for confirmation and auto-revert after 15 s if not kept."
+                                    wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
+                                    font.family: ThemeManager.fontFamily; font.pixelSize: 10; opacity: 0.7
+                                }
+                            }
+                        }
+
+                        // ── Appearance tab ────────────────────────────────────────
+                        ColumnLayout {
+                            visible: root._hlTab === "appearance"
+                            Layout.fillWidth: true
+                            Layout.topMargin: 6
+                            spacing: 6
+
+                            SettingSection { text: "Gaps & borders" }
+                            SettingSlider { label: "Gaps in";  path: "hypr.general.gaps_in";  def: HyprlandConfigService.live("general:gaps_in", 5);   from: 0; to: 40; unit: "px"; applyFn: () => HyprlandConfigService.applyLive() }
+                            SettingSlider { label: "Gaps out"; path: "hypr.general.gaps_out"; def: HyprlandConfigService.live("general:gaps_out", 20); from: 0; to: 60; unit: "px"; applyFn: () => HyprlandConfigService.applyLive() }
+                            SettingSlider { label: "Border size"; path: "hypr.general.border_size"; def: HyprlandConfigService.live("general:border_size", 2); from: 0; to: 8; unit: "px"; applyFn: () => HyprlandConfigService.applyLive() }
+                            SettingText   { label: "Active border";   path: "hypr.general.col.active_border";   def: ""; placeholder: "rgba(4fcf8cee)"; applyFn: () => HyprlandConfigService.applyLive() }
+                            SettingText   { label: "Inactive border"; path: "hypr.general.col.inactive_border"; def: ""; placeholder: "rgba(595959aa)"; applyFn: () => HyprlandConfigService.applyLive() }
+
+                            SettingSection { text: "Decoration" }
+                            SettingSlider { label: "Rounding"; path: "hypr.decoration.rounding"; def: HyprlandConfigService.live("decoration:rounding", 10); from: 0; to: 24; unit: "px"; applyFn: () => HyprlandConfigService.applyLive() }
+                            SettingToggle { label: "Blur"; path: "hypr.decoration.blur.enabled"; def: HyprlandConfigService.live("decoration:blur:enabled", true); applyFn: () => HyprlandConfigService.applyLive() }
+                            SettingSlider { label: "Blur size";   path: "hypr.decoration.blur.size";   def: HyprlandConfigService.live("decoration:blur:size", 8);   from: 1; to: 20; unit: ""; applyFn: () => HyprlandConfigService.applyLive() }
+                            SettingSlider { label: "Blur passes"; path: "hypr.decoration.blur.passes"; def: HyprlandConfigService.live("decoration:blur:passes", 3); from: 1; to: 6;  unit: ""; applyFn: () => HyprlandConfigService.applyLive() }
+                            SettingToggle { label: "Shadow"; path: "hypr.decoration.shadow.enabled"; def: HyprlandConfigService.live("decoration:shadow:enabled", true); applyFn: () => HyprlandConfigService.applyLive() }
+
+                            RowLayout {
+                                Layout.fillWidth: true; Layout.topMargin: 6
+                                Item { Layout.fillWidth: true }
+                                SettingBtn { label: "Reset to my config"; danger: true
+                                             onClicked: HyprlandConfigService.resetKeys(["general", "decoration"]) }
+                            }
+                        }
+
+                        // ── Input tab ─────────────────────────────────────────────
+                        ColumnLayout {
+                            visible: root._hlTab === "input"
+                            Layout.fillWidth: true
+                            Layout.topMargin: 6
+                            spacing: 6
+
+                            SettingSection { text: "Keyboard" }
+                            SettingText { label: "Layout";  path: "hypr.input.kb_layout";  def: ""; placeholder: HyprlandConfigService.live("input:kb_layout", "us"); applyFn: () => HyprlandConfigService.applyLive() }
+                            SettingText { label: "Variant"; path: "hypr.input.kb_variant"; def: ""; placeholder: HyprlandConfigService.live("input:kb_variant", "—"); applyFn: () => HyprlandConfigService.applyLive() }
+
+                            SettingSection { text: "Mouse & touchpad" }
+                            SettingText   { label: "Sensitivity"; sub: "−1.0 to 1.0"; path: "hypr.input.sensitivity"; def: ""; placeholder: "" + HyprlandConfigService.live("input:sensitivity", 0); applyFn: () => HyprlandConfigService.applyLive() }
+                            SettingSeg    { label: "Follow mouse"; path: "hypr.input.follow_mouse"; def: "" + HyprlandConfigService.live("input:follow_mouse", 1)
+                                            options: [ "0", "1", "2", "3" ]; keys: [ "0", "1", "2", "3" ]; applyFn: () => HyprlandConfigService.applyLive() }
+                            SettingToggle { label: "Touchpad natural scroll"; path: "hypr.input.touchpad.natural_scroll"; def: HyprlandConfigService.live("input:touchpad:natural_scroll", false); applyFn: () => HyprlandConfigService.applyLive() }
+
+                            SettingSection { text: "Behavior" }
+                            SettingSeg    { label: "Layout"; path: "hypr.general.layout"; def: HyprlandConfigService.live("general:layout", "dwindle")
+                                            options: [ "Dwindle", "Master" ]; keys: [ "dwindle", "master" ]; applyFn: () => HyprlandConfigService.applyLive() }
+                            SettingToggle { label: "Allow tearing"; sub: "For fullscreen games"; path: "hypr.general.allow_tearing"; def: HyprlandConfigService.live("general:allow_tearing", false); applyFn: () => HyprlandConfigService.applyLive() }
+                            SettingToggle { label: "Animations"; path: "hypr.animations.enabled"; def: HyprlandConfigService.live("animations:enabled", true); applyFn: () => HyprlandConfigService.applyLive() }
+
+                            RowLayout {
+                                Layout.fillWidth: true; Layout.topMargin: 6
+                                Item { Layout.fillWidth: true }
+                                SettingBtn { label: "Reset to my config"; danger: true
+                                             onClicked: HyprlandConfigService.resetKeys(["input", "general.layout", "general.allow_tearing", "animations"]) }
+                            }
+                        }
+                    }
+
                     // Dependencies --------------------------------------------------
                     ColumnLayout {
                         visible: SettingsUi.category === "dependencies"
@@ -1230,6 +1524,53 @@ PanelWindow {
         }
     }
 
+    // ── Monitor confirm-or-revert dialog ──────────────────────────────────────
+    // Applied display changes auto-revert after a countdown unless kept (a bad
+    // mode can black out a screen). Rendered above the card.
+    Rectangle {
+        anchors.fill: parent
+        visible: HyprlandConfigService.monitorConfirmPending
+        color: Qt.rgba(0, 0, 0, 0.55)
+        MouseArea { anchors.fill: parent }   // swallow clicks to the card
+
+        Rectangle {
+            anchors.centerIn: parent
+            width: 360
+            implicitHeight: _cdCol.implicitHeight + 40
+            radius: ThemeManager.panelRadius + 4
+            color: ThemeManager.surfaceContainer
+            border.width: 1; border.color: ThemeManager.outlineVariant
+            layer.enabled: true
+            layer.effect: Elevation { level: 4 }
+
+            ColumnLayout {
+                id: _cdCol
+                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 20 }
+                spacing: 12
+
+                Text {
+                    Layout.fillWidth: true
+                    text: "Keep these display settings?"
+                    color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily
+                    font.pixelSize: ThemeManager.fontSizeLg; font.bold: true; wrapMode: Text.WordWrap
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: "Reverting to the previous settings in " + HyprlandConfigService.monitorCountdown + " s…"
+                    color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily
+                    font.pixelSize: ThemeManager.fontSizeSm; wrapMode: Text.WordWrap
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+                    Item { Layout.fillWidth: true }
+                    SettingBtn { label: "Revert"; danger: true; onClicked: HyprlandConfigService.revertMonitors() }
+                    SettingBtn { label: "Keep changes"; onClicked: HyprlandConfigService.confirmMonitors() }
+                }
+            }
+        }
+    }
+
     // ── Reusable controls ─────────────────────────────────────────────────────
     component SettingSection: Text {
         Layout.topMargin: 10
@@ -1269,6 +1610,7 @@ PanelWindow {
         id: tg
         property string path: ""
         property bool def: false
+        property var applyFn: null
         readonly property bool on: SettingsService.get(path, def)
         Rectangle {
             implicitWidth: 40; implicitHeight: 22; radius: 11
@@ -1281,7 +1623,7 @@ PanelWindow {
                 color: tg.on ? ThemeManager.onPrimary : ThemeManager.onSurfaceVariant
                 Behavior on x { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
             }
-            TapHandler { enabled: tg.depOk; onTapped: SettingsService.set(tg.path, !tg.on) }
+            TapHandler { enabled: tg.depOk; onTapped: { SettingsService.set(tg.path, !tg.on); if (tg.applyFn) tg.applyFn() } }
         }
     }
     component SettingSlider: SettingRowBase {
@@ -1291,6 +1633,7 @@ PanelWindow {
         property real from: 0
         property real to: 100
         property string unit: ""
+        property var applyFn: null
         readonly property real val: SettingsService.get(path, def)
         Text { text: Math.round(sl.val) + sl.unit; color: ThemeManager.onSurfaceVariant
                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm; Layout.rightMargin: 8 }
@@ -1306,6 +1649,7 @@ PanelWindow {
             MouseArea {
                 anchors.fill: parent; anchors.margins: -6
                 onPressed: (e) => _set(e.x); onPositionChanged: (e) => { if (pressed) _set(e.x) }
+                onReleased: if (sl.applyFn) sl.applyFn()
                 function _set(x) {
                     const f = Math.max(0, Math.min(1, (x - 6) / track.width))
                     SettingsService.set(sl.path, Math.round(sl.from + f * (sl.to - sl.from)))
@@ -1319,6 +1663,7 @@ PanelWindow {
         property string def: ""
         property var options: []
         property var keys: []
+        property var applyFn: null
         readonly property string cur: SettingsService.get(path, def)
         Row {
             spacing: 0
@@ -1334,7 +1679,7 @@ PanelWindow {
                     Text { id: _st; anchors.centerIn: parent; text: modelData
                            color: sel ? ThemeManager.onPrimary : ThemeManager.onSurfaceVariant
                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
-                    TapHandler { onTapped: SettingsService.set(seg.path, seg.keys[index]) }
+                    TapHandler { onTapped: { SettingsService.set(seg.path, seg.keys[index]); if (seg.applyFn) seg.applyFn() } }
                 }
             }
         }
@@ -1368,6 +1713,7 @@ PanelWindow {
         property string path: ""
         property string def: ""
         property string placeholder: ""
+        property var applyFn: null
         TextField {
             Layout.preferredWidth: 170
             implicitHeight: 30
@@ -1383,7 +1729,7 @@ PanelWindow {
                 color: ThemeManager.surfaceContainerHigh
                 border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant
             }
-            onEditingFinished: SettingsService.set(tx.path, text)
+            onEditingFinished: { SettingsService.set(tx.path, text); if (tx.applyFn) tx.applyFn() }
         }
     }
     component SettingBtn: Rectangle {

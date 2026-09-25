@@ -63,13 +63,7 @@ for i = 1, 10 do
     hl.bind(mainMod .. " + SHIFT + code:" .. code, hl.dsp.exec_cmd("qs ipc call ws go " .. i .. " move"))
 end
 
-------------------------------------------------------------------------------
--- Apps parked in named special workspaces (toggled from the Quickshell tray).
--- These are EXAMPLES — edit the class matches / workspace names to your apps,
--- and set the matching mapping in Settings → Tray. "silent" = launch without
--- stealing focus or switching the visible workspace.
-------------------------------------------------------------------------------
-
--- hl.window_rule({ name = "ws-spotify",  match = { class = "(spotify|Spotify)" },        workspace = "special:spotify silent" })
--- hl.window_rule({ name = "ws-discord",  match = { class = "(vesktop|discord)" },        workspace = "special:discord silent" })
--- hl.window_rule({ name = "ws-music",    match = { class = "(YouTube Music Desktop App)" }, workspace = "special:music silent" })
+-- Apps parked in named special workspaces at launch are configured in-app under
+-- Settings → Tray → "Launch in special workspace" and emitted as window rules
+-- into hypr.generated.lua above. Keep such rules out of your own config, or the
+-- in-app switch can't turn them off.

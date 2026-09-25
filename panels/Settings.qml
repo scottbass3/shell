@@ -485,6 +485,7 @@ PanelWindow {
                     // Tray ----------------------------------------------------------
                     ColumnLayout {
                         visible: SettingsUi.category === "tray"
+                        onVisibleChanged: if (visible) HyprlandConfigService.refreshClients()
                         Layout.fillWidth: true
                         Layout.margins: 20
                         spacing: 6
@@ -700,6 +701,100 @@ PanelWindow {
                             visible: (SystemTray.items?.values ?? []).length === 0
                             text: "No tray items."
                             color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                        }
+
+                        // Launch rules (Hyprland window rules) --------------------
+                        SettingSection { text: "Launch in special workspace"; Layout.topMargin: 12 }
+                        Text {
+                            Layout.fillWidth: true; Layout.bottomMargin: 4
+                            text: "Windows whose class matches open directly in that special workspace. Switch off to let the app open normally. Use the same workspace name as the tray mapping above. Applies to windows opened from now on."
+                            wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
+                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                        }
+                        Repeater {
+                            model: HyprlandConfigService.specialRules
+                            delegate: RowLayout {
+                                id: _sr
+                                required property var modelData
+                                required property int index
+                                readonly property bool on: modelData.enabled !== false
+                                readonly property var hit: HyprlandConfigService.matchedClass(modelData.class ?? "")
+                                Layout.fillWidth: true
+                                spacing: 10
+                                SwitchPill {
+                                    on: _sr.on
+                                    onToggled: HyprlandConfigService.setSpecialRule(_sr.index, "enabled", !_sr.on)
+                                }
+                                ColumnLayout {
+                                    Layout.fillWidth: true; spacing: 1
+                                    opacity: _sr.on ? 1 : 0.5
+                                    TextField {
+                                        Layout.fillWidth: true; implicitHeight: 26
+                                        text: _sr.modelData.class ?? ""; placeholderText: "window class regex (e.g. rocket-chat)"
+                                        color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                        leftPadding: 8; rightPadding: 8
+                                        background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
+                                                                border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
+                                        onEditingFinished: if (text !== (_sr.modelData.class ?? "")) HyprlandConfigService.setSpecialRule(_sr.index, "class", text.trim())
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true; elide: Text.ElideRight
+                                        text: _sr.hit === null ? "Invalid regex"
+                                            : (_sr.hit !== "" ? "Matches open window: " + _sr.hit : "No open window matches")
+                                        color: _sr.hit === null ? ThemeManager.error : ThemeManager.onSurfaceVariant
+                                        font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs ?? 11
+                                    }
+                                }
+                                Text { text: "special:"; color: ThemeManager.onSurfaceVariant; opacity: _sr.on ? 1 : 0.5
+                                       font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm; Layout.alignment: Qt.AlignTop; Layout.topMargin: 5 }
+                                TextField {
+                                    Layout.preferredWidth: 104; implicitHeight: 26; Layout.alignment: Qt.AlignTop
+                                    opacity: _sr.on ? 1 : 0.5
+                                    text: _sr.modelData.ws ?? ""; placeholderText: "workspace"
+                                    color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                    leftPadding: 8; rightPadding: 8
+                                    background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
+                                                            border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
+                                    onEditingFinished: if (text !== (_sr.modelData.ws ?? "")) HyprlandConfigService.setSpecialRule(_sr.index, "ws", text.trim())
+                                }
+                                SettingBtn { Layout.alignment: Qt.AlignTop; label: "Remove"; danger: true; onClicked: HyprlandConfigService.removeSpecialRule(_sr.index) }
+                            }
+                        }
+                        RowLayout {
+                            Layout.topMargin: 8; spacing: 8
+                            SettingBtn { label: "+  Add rule"; onClicked: HyprlandConfigService.addSpecialRule("", "") }
+                            SettingBtn { label: "Refresh windows"; onClicked: HyprlandConfigService.refreshClients() }
+                        }
+                        Text {
+                            Layout.topMargin: 6
+                            visible: _openClasses.count > 0
+                            text: "Add from an open window:"
+                            color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                        }
+                        Flow {
+                            Layout.fillWidth: true; spacing: 6
+                            Repeater {
+                                id: _openClasses
+                                // Unique classes of open windows not already covered by a rule.
+                                model: {
+                                    const rules = HyprlandConfigService.specialRules
+                                    const seen = new Set()
+                                    return HyprlandConfigService.clients.map(c => c.class).filter(cls => {
+                                        if (seen.has(cls)) return false
+                                        seen.add(cls)
+                                        return !rules.some(r => {
+                                            try { return new RegExp("^(?:" + (r.class ?? "") + ")$").test(cls) } catch (e) { return false }
+                                        })
+                                    })
+                                }
+                                delegate: SettingBtn {
+                                    required property string modelData
+                                    label: "+ " + modelData
+                                    onClicked: HyprlandConfigService.addSpecialRule(
+                                        modelData.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+                                        modelData.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""))
+                                }
+                            }
                         }
                     }
 
@@ -1728,6 +1823,21 @@ PanelWindow {
         font.family: ThemeManager.fontFamily
         font.pixelSize: ThemeManager.fontSizeSm
         font.bold: true
+    }
+    component SwitchPill: Rectangle {
+        id: sw
+        property bool on: false
+        signal toggled()
+        implicitWidth: 40; implicitHeight: 22; radius: 11
+        color: sw.on ? ThemeManager.primary : ThemeManager.surfaceContainerHigh
+        Behavior on color { ColorAnimation { duration: 120 } }
+        Rectangle {
+            width: 16; height: 16; radius: 8
+            y: 3; x: sw.on ? parent.width - width - 3 : 3
+            color: sw.on ? ThemeManager.onPrimary : ThemeManager.onSurfaceVariant
+            Behavior on x { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+        }
+        TapHandler { onTapped: sw.toggled() }
     }
     component SettingRowBase: RowLayout {
         id: rowBase

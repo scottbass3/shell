@@ -26,8 +26,9 @@ in QML, with liquid SDF panel corners that merge into a rounded screen frame.
 - **Dashboard** — quick-settings popout with media controls (MPRIS + a realtime
   YouTube Music companion, with two-way auto-pause between players), audio
   visualizer, weather, and a settings shortcut.
-- **System tray** — per-app hide, left-click to toggle a special workspace, and
-  **custom entries** to pin non-SNI apps (run a command or toggle a workspace).
+- **System tray** — per-app hide, left-click to toggle a special workspace,
+  per-app switch to launch it straight into that workspace, and **custom
+  entries** to pin non-SNI apps (run a command or toggle a workspace).
 - **Tools toolbar** — opt-in right-edge dock of **user-defined** tools: add your
   own buttons (name + command + icon from a picker) for anything you launch.
   Includes a built-in wallpaper / theme picker.
@@ -145,8 +146,9 @@ is written to `hypr/binds.generated.lua` and applied with `hyprctl reload`. Unti
 you bind anything, open the launcher from the bar button and Settings from the
 dashboard gear icon.
 
-Edit `hypr/quickshell.lua` to taste — the special-workspace window rules at the
-bottom are commented examples; match them to your apps and to Settings → Tray.
+Edit `hypr/quickshell.lua` to taste. Apps that should open straight into a
+special workspace are set in Settings → Tray → *Launch in special workspace*
+(written to `hypr.generated.lua` as window rules, each one switchable).
 
 ## Running manually
 

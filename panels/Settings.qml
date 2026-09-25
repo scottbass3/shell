@@ -369,7 +369,7 @@ PanelWindow {
                         }
                         Text {
                             Layout.fillWidth: true
-                            text: "Exports the active theme's colors to ~/.local/state/quickshell/exports/"
+                            text: "Exports the active theme's colors to ~/.local/state/scottbass3-shell/exports/"
                             wrapMode: Text.WordWrap
                             color: ThemeManager.onSurfaceVariant
                             font.family: ThemeManager.fontFamily; font.pixelSize: 10

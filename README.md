@@ -167,7 +167,7 @@ export / import), bar widgets, tray (per-app hide + special workspace + custom
 non-SNI entries), tools, and weather.
 
 All mutable state — settings, custom themes, pins, app-usage, generated binds —
-lives **outside the checkout** under `~/.local/state/quickshell`
+lives **outside the checkout** under `~/.local/state/scottbass3-shell`
 (`$XDG_STATE_HOME`). The repo stays read-only: pull updates without touching
 your config.
 

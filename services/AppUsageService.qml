@@ -4,7 +4,7 @@ import Quickshell.Io
 import "."
 
 // App launch history → frecency scoring (frequency + recency).
-// Persists per-app launch timestamps to ~/.local/state/quickshell/usage.json
+// Persists per-app launch timestamps to ~/.local/state/scottbass3-shell/usage.json
 //   { "<app-id>": [epochMs, epochMs, ...], ... }
 // score(key) = Σ weight(age) over stored launches; recent + frequent ranks high.
 QtObject {

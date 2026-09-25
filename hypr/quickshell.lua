@@ -43,7 +43,31 @@ end)
 -- configured in-app under Settings → Keybindings and written to
 -- hypr/binds.generated.lua. They are UNBOUND by default — until you set them,
 -- reach Settings via the bar launcher button or the dashboard gear icon.
-local state = (os.getenv("XDG_STATE_HOME") or (home .. "/.local/state")) .. "/quickshell"
+local stateBase = os.getenv("XDG_STATE_HOME") or (home .. "/.local/state")
+local state     = stateBase .. "/scottbass3-shell"
+
+-- One-time move from the old location ($XDG_STATE_HOME/quickshell, shared by
+-- every Quickshell config). Runs before the shell starts, so it reads the moved
+-- files; saved wallpaper paths still point into the old directory, so rewrite them.
+local legacy = stateBase .. "/quickshell"
+local function exists(p) local f = io.open(p); if f then f:close() end; return f ~= nil end
+if not exists(state .. "/settings.json") and exists(legacy .. "/settings.json") then
+    os.execute("mkdir -p '" .. state:gsub("'", "'\\''") .. "'")
+    for _, n in ipairs({ "settings.json", "active.json", "pinned.json", "usage.json",
+                         "binds.generated.lua", "hypr.generated.lua",
+                         "custom", "exports", "generated", "wallpapers" }) do
+        os.rename(legacy .. "/" .. n, state .. "/" .. n)
+    end
+    local from, to = legacy:gsub("%p", "%%%0"), state:gsub("%%", "%%%%")
+    for _, f in ipairs({ state .. "/settings.json", home .. "/.config/hypr/hyprpaper.conf" }) do
+        local h = io.open(f)
+        if h then
+            local txt = h:read("a"); h:close()
+            h = io.open(f, "w"); h:write((txt:gsub(from, to))); h:close()
+        end
+    end
+end
+
 local genBinds = state .. "/binds.generated.lua"
 if io.open(genBinds) then loadfile(genBinds)() end
 

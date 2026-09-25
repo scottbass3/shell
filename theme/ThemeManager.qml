@@ -283,17 +283,20 @@ QtObject {
     }
 
     function generateWallpaperTheme(wallpaperPath) {
-        const cfgPath = Qt.resolvedUrl("matugen/matugen.toml").toString().replace(/^file:\/\//, "")
+        const tplPath = Qt.resolvedUrl("matugen/quickshell.tera").toString().replace(/^file:\/\//, "")
         // Pick light/dark mode from the wallpaper's mean luminance (matugen
-        // itself always defaults to dark).
+        // itself always defaults to dark). The matugen config is written at
+        // runtime because its template/output paths depend on where the shell
+        // is installed and on $XDG_STATE_HOME.
         _matugen.command = ["sh", "-c",
-            'WP="$1"; CFG="$2"; GEN="$3"; mkdir -p "$GEN"; ' +
+            'WP="$1"; TPL="$2"; GEN="$3"; CFG="$GEN/matugen.toml"; mkdir -p "$GEN"; ' +
+            'printf \'[config]\\n\\n[templates.quickshell]\\ninput_path  = "%s"\\noutput_path = "%s"\\n\' "$TPL" "$GEN/wallpaper.json" > "$CFG"; ' +
             'L=$(magick "$WP" -resize 1x1\\! -colorspace Gray -format "%[fx:mean]" info: 2>/tmp/matugen-mode.err); ' +
             'MODE=dark; ' +
             '[ -n "$L" ] && awk -v l="$L" "BEGIN{exit !(l>0.55)}" && MODE=light; ' +
             'echo "L=$L MODE=$MODE WP=$WP" > /tmp/matugen-mode.log; ' +
             'matugen -c "$CFG" --mode "$MODE" image --source-color-index 0 "$WP"',
-            "sh", wallpaperPath, cfgPath, Paths.stateDir + "/generated"]
+            "sh", wallpaperPath, tplPath, Paths.stateDir + "/generated"]
         _matugen.running = true
     }
 

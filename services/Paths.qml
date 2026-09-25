@@ -6,8 +6,9 @@ import Quickshell
 // ".." is the config root. Two roots:
 //   configDir — the (read-only) checkout: code, presets, scripts, plugin.
 //   stateDir  — mutable user state, kept OUTSIDE the checkout under XDG state
-//               ($XDG_STATE_HOME/quickshell, default ~/.local/state/quickshell):
-//               settings, themes, pins, usage, generated binds.
+//               ($XDG_STATE_HOME/scottbass3-shell, default
+//               ~/.local/state/scottbass3-shell): settings, themes, pins, usage,
+//               generated binds.
 QtObject {
     // e.g. "/home/<user>/.config/quickshell"
     readonly property string configDir:
@@ -15,15 +16,12 @@ QtObject {
     readonly property string scriptsDir: configDir + "/scripts/hypr"
     function script(name) { return scriptsDir + "/" + name }
 
-    // $XDG_STATE_HOME/quickshell, else ~/.local/state/quickshell — same logic
-    // as hypr/quickshell.lua and install.sh so all three agree.
+    // $XDG_STATE_HOME/scottbass3-shell, else ~/.local/state/scottbass3-shell —
+    // same logic as hypr/quickshell.lua and install.sh so all three agree.
     readonly property string stateDir: {
         let base = String(Quickshell.env("XDG_STATE_HOME") || "").trim().replace(/\/+$/, "")
-        if (base === "") {
-            const home = String(Quickshell.env("HOME") || "").replace(/\/+$/, "")
-            base = (home !== "" ? home : configDir.replace(/\/\.config\/quickshell$/, "")) + "/.local/state"
-        }
-        return base + "/quickshell"
+        if (base === "") base = String(Quickshell.env("HOME") || "").replace(/\/+$/, "") + "/.local/state"
+        return base + "/scottbass3-shell"
     }
     function state(name) { return stateDir + "/" + name }
 }

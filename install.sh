@@ -55,7 +55,7 @@ cp -r blobs-plugin/build/qml/Caelestia/Blobs Caelestia/Blobs
 say "Plugin → $SRC/Caelestia/Blobs"
 
 # ── User state dir (settings, themes, pins) lives outside the checkout ───────
-mkdir -p "${XDG_STATE_HOME:-$HOME/.local/state}/quickshell"
+mkdir -p "${XDG_STATE_HOME:-$HOME/.local/state}/scottbass3-shell"
 chmod +x launch.sh scripts/hypr/*.sh 2>/dev/null || true
 
 # ── Optional runtime dependency report ───────────────────────────────────────

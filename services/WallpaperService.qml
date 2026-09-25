@@ -6,7 +6,7 @@ import "../theme"
 
 // Wallpaper backend (hyprpaper) + Material You theming (matugen), plus favorites
 // and a timed rotation. Lists images under ~/wallpaper and the managed downloads
-// dir (~/.local/state/quickshell/wallpapers).
+// dir (~/.local/state/scottbass3-shell/wallpapers).
 //   preview(path) — set live + re-theme, no persistence
 //   commit(path)  — preview + persist (settings + hyprpaper.conf)
 QtObject {

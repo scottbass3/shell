@@ -4,7 +4,7 @@ import Quickshell.Io
 import "."
 
 // Central, forward-compatible config for the shell. Persists to
-// ~/.local/state/quickshell/settings.json. Components read values with
+// ~/.local/state/scottbass3-shell/settings.json. Components read values with
 //   SettingsService.get("bar.clock.use24h", true)
 // and write with SettingsService.set(path, value) — both dotted paths. Reads
 // depend on `rev` so bindings update live; unknown keys return the caller's

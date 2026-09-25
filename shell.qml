@@ -130,6 +130,24 @@ ShellRoot {
         function close():  void { NotificationService.closeCenter() }
     }
 
+    // Wallpaper:  qs ipc call wallpaper set /abs/path.jpg | next | get
+    // Same path as the in-app picker (hyprpaper + matugen theme + persistence).
+    IpcHandler {
+        target: "wallpaper"
+        function set(path: string): string {
+            if (!path.startsWith("/")) return "error: path must be absolute"
+            if (!WallpaperService.available) return "error: hyprpaper not installed"
+            WallpaperService.commit(path)
+            return path
+        }
+        function next(): string {
+            if ((WallpaperService.rotationPaths?.length ?? 0) === 0) return "error: no wallpapers in rotation"
+            WallpaperService.advance()
+            return WallpaperService.current
+        }
+        function get(): string { return WallpaperService.current }
+    }
+
     // Custom session lock (WlSessionLock) — see LockScreen.qml
     LockScreen {}
 

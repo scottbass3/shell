@@ -116,6 +116,17 @@ you want them.
 yay -S scottbass3-shell-git
 ```
 
+**Nix** (flake) — add the input and install the package:
+
+```nix
+inputs.scottbass3-shell.url = "github:scottbass3/shell";
+# …
+environment.systemPackages = [ inputs.scottbass3-shell.packages.${pkgs.stdenv.hostPlatform.system}.default ];
+```
+
+The package puts `quickshell` and the optional tools on the launcher's `PATH`;
+the shell lives in `share/scottbass3-shell` of the package.
+
 **One-liner** (clones to `~/.config/quickshell`, builds the plugin):
 
 ```sh
@@ -140,6 +151,12 @@ Add to the **end** of your `hyprland.lua`, for the AUR package:
 
 ```lua
 loadfile("/etc/xdg/quickshell/scottbass3-shell/hypr/quickshell.lua")()
+```
+
+for Nix, with the package's store path (e.g. interpolated from home-manager):
+
+```lua
+loadfile("${scottbass3-shell}/share/scottbass3-shell/hypr/quickshell.lua")()
 ```
 
 or for a git checkout:
@@ -169,7 +186,7 @@ special workspace are set in Settings → Tray → *Launch in special workspace*
 ## Running manually
 
 ```sh
-scottbass3-shell &                 # AUR package
+scottbass3-shell &                 # AUR / Nix package
 ~/.config/quickshell/launch.sh &   # git checkout
 ```
 

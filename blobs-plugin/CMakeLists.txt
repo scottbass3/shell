@@ -41,6 +41,6 @@ install(TARGETS caelestia-blobs caelestia-blobsplugin
 )
 install(FILES
     "${CMAKE_BINARY_DIR}/qml/Caelestia/Blobs/qmldir"
-    "${CMAKE_BINARY_DIR}/qml/Caelestia/Blobs/Caelestia.Blobs.qmltypes"
+    "${CMAKE_BINARY_DIR}/qml/Caelestia/Blobs/caelestia-blobs.qmltypes"
     DESTINATION "${INSTALL_QMLDIR}/Caelestia/Blobs"
 )

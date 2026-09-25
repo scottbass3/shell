@@ -183,6 +183,10 @@ PanelWindow {
         focus: root.active
         Keys.onEscapePressed: SettingsUi.hide()
 
+        // Swallow clicks on the card background (sidebar gaps, header) so they
+        // don't reach the dismiss scrim underneath.
+        MouseArea { anchors.fill: parent }
+
         RowLayout {
             anchors.fill: parent
             spacing: 0

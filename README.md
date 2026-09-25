@@ -105,9 +105,16 @@ ytmdesktop server directly over a WebSocket — no Node. It needs the
 source of truth.
 Screenshots, clipboard and idle-lock are **Hyprland-side**:
 wire your own `hyprland.lua` binds (e.g. `grim`/`slurp`/`wl-copy`) and run an
-idle daemon (e.g. `hypridle` calling `qs ipc call lock lock`) if you want them.
+idle daemon (e.g. `hypridle` calling `qs -p <shell dir> ipc call lock lock`) if
+you want them.
 
 ## Install
+
+**AUR** (Arch Linux) — installs to `/etc/xdg/quickshell/scottbass3-shell`:
+
+```sh
+yay -S scottbass3-shell-git
+```
 
 **One-liner** (clones to `~/.config/quickshell`, builds the plugin):
 
@@ -129,7 +136,13 @@ optional YouTube Music bridge deps, and prints the Hyprland steps.
 
 ## Hyprland integration
 
-Add to the **end** of your `hyprland.lua`:
+Add to the **end** of your `hyprland.lua`, for the AUR package:
+
+```lua
+loadfile("/etc/xdg/quickshell/scottbass3-shell/hypr/quickshell.lua")()
+```
+
+or for a git checkout:
 
 ```lua
 loadfile(os.getenv("HOME") .. "/.config/quickshell/hypr/quickshell.lua")()
@@ -142,22 +155,27 @@ loaded last so they layer over your own config without overwriting it.
 
 **Shell-action shortcuts** (app launcher, settings, lock, tools, scratchpad) are
 **unbound by default**. Set them in **Settings → Keybindings** — each saved combo
-is written to `hypr/binds.generated.lua` and applied with `hyprctl reload`. Until
+is written to `~/.local/state/scottbass3-shell/binds.generated.lua` and applied
+with `hyprctl reload`. Until
 you bind anything, open the launcher from the bar button and Settings from the
 dashboard gear icon.
 
-Edit `hypr/quickshell.lua` to taste. Apps that should open straight into a
+In a git checkout, edit `hypr/quickshell.lua` to taste (the AUR copy is
+replaced on every update — copy it elsewhere and `loadfile` your copy
+instead). Apps that should open straight into a
 special workspace are set in Settings → Tray → *Launch in special workspace*
 (written to `hypr.generated.lua` as window rules, each one switchable).
 
 ## Running manually
 
 ```sh
-~/.config/quickshell/launch.sh &
+scottbass3-shell &                 # AUR package
+~/.config/quickshell/launch.sh &   # git checkout
 ```
 
-`launch.sh` only adds the config dir to `QML_IMPORT_PATH` (so the blobs plugin
-resolves) and execs `quickshell`.
+`launch.sh` (installed as `/usr/bin/scottbass3-shell` by the package) only adds
+the blobs plugin to `QML_IMPORT_PATH` and runs `quickshell` on its own config
+directory.
 
 ## Configuration
 

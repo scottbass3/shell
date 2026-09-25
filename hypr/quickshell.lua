@@ -17,7 +17,8 @@ local mainMod = "SUPER"
 -- This shell's root, derived from this file's location (hypr/quickshell.lua),
 -- so it works from a checkout and from a system install alike.
 local qsDir = debug.getinfo(1, "S").source:match("^@(.*)/hypr/[^/]+$") or (home .. "/.config/quickshell")
-local ipc   = "qs -p '" .. qsDir:gsub("'", "'\\''") .. "' ipc call "
+local function shq(s) return "'" .. s:gsub("'", "'\\''") .. "'" end
+local ipc   = "qs -p " .. shq(qsDir) .. " ipc call "
 
 ------------------------------------------------------------------------------
 -- Required settings
@@ -37,7 +38,7 @@ hl.config({
 ------------------------------------------------------------------------------
 
 hl.on("hyprland.start", function()
-    hl.exec_cmd(home .. "/.config/quickshell/launch.sh")
+    hl.exec_cmd(shq(qsDir .. "/launch.sh"))
 end)
 
 ------------------------------------------------------------------------------
@@ -57,7 +58,7 @@ local state     = stateBase .. "/scottbass3-shell"
 local legacy = stateBase .. "/quickshell"
 local function exists(p) local f = io.open(p); if f then f:close() end; return f ~= nil end
 if not exists(state .. "/settings.json") and exists(legacy .. "/settings.json") then
-    os.execute("mkdir -p '" .. state:gsub("'", "'\\''") .. "'")
+    os.execute("mkdir -p " .. shq(state))
     for _, n in ipairs({ "settings.json", "active.json", "pinned.json", "usage.json",
                          "binds.generated.lua", "hypr.generated.lua",
                          "custom", "exports", "generated", "wallpapers" }) do

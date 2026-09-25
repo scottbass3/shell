@@ -1,7 +1,11 @@
 #!/bin/sh
-# Quickshell launcher — adds this config dir to QML_IMPORT_PATH so the bundled
-# Caelestia.Blobs plugin (built by install.sh into ./Caelestia/Blobs) is found.
-# Add to Hyprland autostart, e.g.:  exec-once = ~/.config/quickshell/launch.sh
-here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
-export QML_IMPORT_PATH="${here}:${QML_IMPORT_PATH}"
-exec quickshell "$@"
+# Launcher for this shell: puts the Caelestia.Blobs plugin on QML_IMPORT_PATH
+# (built into ./Caelestia by install.sh, or installed to
+# /usr/lib/scottbass3-shell/qml by the AUR package) and runs this config.
+# Started by hypr/quickshell.lua; the package links it as /usr/bin/scottbass3-shell.
+here=$(dirname -- "$(readlink -f -- "$0")")
+for d in /usr/lib/scottbass3-shell/qml "$here"; do
+    [ -d "$d/Caelestia/Blobs" ] && QML_IMPORT_PATH="$d${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}"
+done
+export QML_IMPORT_PATH
+exec quickshell -p "$here" "$@"

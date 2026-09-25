@@ -14,6 +14,11 @@
 local home    = os.getenv("HOME")
 local mainMod = "SUPER"
 
+-- This shell's root, derived from this file's location (hypr/quickshell.lua),
+-- so it works from a checkout and from a system install alike.
+local qsDir = debug.getinfo(1, "S").source:match("^@(.*)/hypr/[^/]+$") or (home .. "/.config/quickshell")
+local ipc   = "qs -p '" .. qsDir:gsub("'", "'\\''") .. "' ipc call "
+
 ------------------------------------------------------------------------------
 -- Required settings
 ------------------------------------------------------------------------------
@@ -83,8 +88,8 @@ if io.open(genHypr) then loadfile(genHypr)() end
 -- on any keyboard layout (code:10..19 = number row 1..0).
 for i = 1, 10 do
     local code = 9 + i
-    hl.bind(mainMod .. " + code:" .. code,         hl.dsp.exec_cmd("qs ipc call ws go " .. i .. " switch"))
-    hl.bind(mainMod .. " + SHIFT + code:" .. code, hl.dsp.exec_cmd("qs ipc call ws go " .. i .. " move"))
+    hl.bind(mainMod .. " + code:" .. code,         hl.dsp.exec_cmd(ipc .. "ws go " .. i .. " switch"))
+    hl.bind(mainMod .. " + SHIFT + code:" .. code, hl.dsp.exec_cmd(ipc .. "ws go " .. i .. " move"))
 end
 
 -- Apps parked in named special workspaces at launch are configured in-app under

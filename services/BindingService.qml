@@ -14,11 +14,11 @@ QtObject {
 
     // The bindable shell actions. `cmd` is run via hl.dsp.exec_cmd(...).
     readonly property var actions: [
-        { key: "launcher",   label: "App launcher",      cmd: "qs ipc call launcher toggle" },
-        { key: "settings",   label: "Settings",          cmd: "qs ipc call settings toggle" },
-        { key: "lock",       label: "Lock screen",       cmd: "qs ipc call lock lock" },
-        { key: "tools",      label: "Tools toolbar",     cmd: "qs ipc call tools toggle" },
-        { key: "scratchpad", label: "Scratchpad toggle", cmd: "qs ipc call scratchpad toggle" }
+        { key: "launcher",   label: "App launcher",      cmd: Paths.ipc("launcher toggle") },
+        { key: "settings",   label: "Settings",          cmd: Paths.ipc("settings toggle") },
+        { key: "lock",       label: "Lock screen",       cmd: Paths.ipc("lock lock") },
+        { key: "tools",      label: "Tools toolbar",     cmd: Paths.ipc("tools toggle") },
+        { key: "scratchpad", label: "Scratchpad toggle", cmd: Paths.ipc("scratchpad toggle") }
     ]
 
     readonly property string _file: Paths.state("binds.generated.lua")
@@ -38,7 +38,8 @@ QtObject {
         for (const a of actions) {
             const c = String(combo(a.key)).trim()
             if (c === "") continue
-            out.push('hl.bind("' + c + '", hl.dsp.exec_cmd("' + a.cmd + '"))')
+            const cmd = a.cmd.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
+            out.push('hl.bind("' + c + '", hl.dsp.exec_cmd("' + cmd + '"))')
         }
         out.push("")
         return out.join("\n")

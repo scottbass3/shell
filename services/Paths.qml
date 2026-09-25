@@ -16,6 +16,12 @@ QtObject {
     readonly property string scriptsDir: configDir + "/scripts/hypr"
     function script(name) { return scriptsDir + "/" + name }
 
+    // Shell command that calls an IpcHandler on THIS instance. Targeting by
+    // config path works both from a checkout and from a system install
+    // (/etc/xdg/quickshell/scottbass3-shell), where a bare `qs ipc` would look
+    // for ~/.config/quickshell instead.
+    function ipc(args) { return "qs -p '" + configDir.replace(/'/g, "'\\''") + "' ipc call " + args }
+
     // $XDG_STATE_HOME/scottbass3-shell, else ~/.local/state/scottbass3-shell —
     // same logic as hypr/quickshell.lua and install.sh so all three agree.
     readonly property string stateDir: {

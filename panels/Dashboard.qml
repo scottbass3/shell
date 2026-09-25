@@ -787,7 +787,9 @@ Item {
 
         readonly property int _pad: 10
         readonly property real _contentH: _flyout.item ? _flyout.item.implicitHeight : 0
-        readonly property real _maxH: root.height - ThemeManager.spacingLg * 2
+        // Measured from the flyout's own top (the rail, below the tab bar), not
+        // the dashboard's, or the bottom overflows and can't be scrolled to.
+        readonly property real _maxH: root.height - y - ThemeManager.spacingLg
 
         width:  _flyout.item ? _flyout.item.implicitWidth + _pad * 2 : 0
         height: Math.min(_contentH + _pad * 2, _maxH)

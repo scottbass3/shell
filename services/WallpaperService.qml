@@ -104,13 +104,22 @@ QtObject {
     // Re-apply the saved wallpaper image on startup WITHOUT regenerating the
     // theme — the active theme is persisted separately by ThemeManager, so
     // running matugen here would clobber a theme the user kept.
+    // `available` is still false at startup (DependencyService probes
+    // asynchronously), so the apply is deferred until the probe finds hyprpaper.
+    property string _pendingRestore: ""
     function _restore(path) {
         if (!path) return
         current = path                 // track it regardless (drives lock-screen sync)
-        if (!available) return         // can't apply without hyprpaper
-        _live.command = ["sh", "-c", _liveScript, "sh", path]
-        _live.running = true
+        _pendingRestore = path
+        _applyPendingRestore()
     }
+    function _applyPendingRestore() {
+        if (_pendingRestore === "" || !available) return
+        _live.command = ["sh", "-c", _liveScript, "sh", _pendingRestore]
+        _live.running = true
+        _pendingRestore = ""
+    }
+    onAvailableChanged: _applyPendingRestore()
 
     // Back-compat alias (mouse click = immediate commit)
     function apply(path) { commit(path) }
@@ -156,14 +165,19 @@ QtObject {
         }
     }
 
+    // Waits (up to 3 s) for the hyprpaper IPC socket instead of a fixed sleep,
+    // which lost the race on a cold session start. `preload` only exists before
+    // hyprpaper 0.8; it's a harmless error on newer versions.
     readonly property string _liveScript:
         "WP=\"$1\"; " +
-        "pgrep -x hyprpaper >/dev/null || { hyprpaper >/dev/null 2>&1 & sleep 0.6; }; " +
+        "pgrep -x hyprpaper >/dev/null || { hyprpaper >/dev/null 2>&1 & }; " +
+        "i=0; until hyprctl hyprpaper listactive >/dev/null 2>&1 || [ $i -ge 30 ]; do sleep 0.1; i=$((i+1)); done; " +
         "hyprctl hyprpaper preload \"$WP\" >/dev/null 2>&1; " +
         "hyprctl hyprpaper wallpaper \",$WP\" >/dev/null 2>&1"
 
+    // hyprpaper >= 0.8 block syntax (it ignores the old `preload`/`wallpaper = ,path` lines).
     readonly property string _persistScript:
-        "WP=\"$1\"; printf 'preload = %s\\nwallpaper = ,%s\\nsplash = false\\n' \"$WP\" \"$WP\" > \"$HOME/.config/hypr/hyprpaper.conf\""
+        "WP=\"$1\"; printf 'wallpaper {\\n    monitor =\\n    path = %s\\n}\\nsplash = false\\n' \"$WP\" > \"$HOME/.config/hypr/hyprpaper.conf\""
 
     property Process _live:        Process { running: false }
     property Process _persistProc: Process { running: false }

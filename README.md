@@ -6,6 +6,8 @@ A Material-You desktop shell for **Hyprland**, built with
 toolbar, a lock screen, and a built-in settings app with a theme designer — all
 in QML, with liquid SDF panel corners that merge into a rounded screen frame.
 
+![Dashboard (profile, weather, calendar, system stats, quick settings, media) and app launcher over a Material You theme generated from the wallpaper](docs/screenshot.webp)
+
 > ⚠️ **Hyprland Lua config required.** Integration uses the `hl.*` Lua API
 > (special-workspace toggles, focus dispatch, window moves). If you run the
 > classic hyprlang (`.conf`) config you'll need to port `hypr/quickshell.lua`

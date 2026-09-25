@@ -114,6 +114,9 @@ QtObject {
                     })
                 }
                 root.monitors = out
+                // Monitor lines need the probed outputs; the startup write ran
+                // before this and dropped them. Skip while edits are staged.
+                if (!root._monDirty) root._write(false)
             }
         }
     }

@@ -16,6 +16,10 @@ QtObject {
     readonly property bool _canSync:     DependencyService.available("vdirsyncer")
     readonly property bool canCreate:    available && _canSync
 
+    // The dashboard's first loadMonth() runs before DependencyService has probed
+    // khal, so reload the last requested month once it turns up.
+    onAvailableChanged: if (available) loadMonth(_lastView)
+
     // { "YYYY-MM-DD": [ {title,sdate,stime,edate,etime,location,calendar,uid,description} ] }
     property var  eventsByDate: ({})
     property bool busy:    false

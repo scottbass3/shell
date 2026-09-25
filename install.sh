@@ -5,8 +5,8 @@
 #   Local:   ./install.sh   (run from a checkout)
 #
 # It will: clone the repo to ~/.config/quickshell (remote mode), build the
-# bundled Caelestia.Blobs Qt plugin, install the YouTube Music bridge deps
-# (optional), and print the Hyprland integration steps.
+# bundled Caelestia.Blobs Qt plugin, report optional runtime tools, and print
+# the Hyprland integration steps.
 set -euo pipefail
 
 # ── Configuration ────────────────────────────────────────────────────────────

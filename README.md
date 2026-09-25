@@ -1,124 +1,111 @@
-# Quickshell Desktop Shell
+# scottbass3-shell
 
-A Material-You desktop shell for **Hyprland**, built with
-[Quickshell](https://quickshell.outfoxxed.me). Top bar, app launcher
-(Windows-11-style start menu), notification center, media controls, a tools
-toolbar, a lock screen, and a built-in settings app with a theme designer — all
-in QML, with liquid SDF panel corners that merge into a rounded screen frame.
+A Material You desktop shell for **Hyprland**, built with
+[Quickshell](https://quickshell.outfoxxed.me). It has a top bar, an app
+launcher styled after the Windows 11 start menu, a notification center, media
+controls, a tools toolbar, a lock screen and a settings app with a theme
+designer. Everything is written in QML, and the panels use SDF corners that
+merge into a rounded screen frame.
 
 ![Dashboard (profile, weather, calendar, system stats, quick settings, media) and app launcher over a Material You theme generated from the wallpaper](docs/screenshot.webp)
 
-> ⚠️ **Hyprland Lua config required.** Integration uses the `hl.*` Lua API
-> (special-workspace toggles, focus dispatch, window moves). If you run the
-> classic hyprlang (`.conf`) config you'll need to port `hypr/quickshell.lua`
+> ⚠️ **Requires the Hyprland Lua config.** The integration uses the `hl.*` Lua
+> API (special workspace toggles, focus dispatch, window moves). With the
+> classic hyprlang (`.conf`) config, you'll have to port `hypr/quickshell.lua`
 > and `scripts/hypr/*.sh` yourself.
 
 ## Features
 
-- **Top bar** — per-monitor workspaces (live window thumbnails on hover),
-  clock, window title, system tray, and an opt-in status group
-  (network, Bluetooth, microphone, audio, battery), notifications and power.
-- **App launcher** — Windows-11-style start menu: type-anywhere fuzzy search,
-  full 2D arrow-key grid navigation, pinned apps with drag-to-reorder,
-  frecency-ranked recommendations, and right-click context menus. Deploys from
-  the bottom of the screen.
-- **Notification center** — popup toasts + a history panel; click a
-  notification to focus/launch its app (revealing its special workspace if
-  parked there). Do-not-disturb toggle.
-- **Dashboard** — quick-settings popout with media controls (MPRIS + a realtime
-  YouTube Music companion, with two-way auto-pause between players), audio
-  visualizer, weather, and a settings shortcut.
-- **System tray** — per-app hide, left-click to toggle a special workspace,
-  per-app switch to launch it straight into that workspace, and **custom
-  entries** to pin non-SNI apps (run a command or toggle a workspace).
-- **Tools toolbar** — opt-in right-edge dock of **user-defined** tools: add your
-  own buttons (name + command + icon from a picker) for anything you launch.
-  Includes a built-in wallpaper / theme picker.
-- **Lock screen** — session lock that survives shell hot-reload.
-- **Settings app** (`SUPER+I`) — live, in-app configuration:
-  - **Appearance modes**: frame / top-bar-only / floating islands, with live
-    switching and matching panel styling.
-  - **Theme designer**: built-in Material You themes plus create / duplicate /
-    rename / delete / import / export of custom themes; optional
-    `matugen` wallpaper-based generation.
-  - **Wallpaper**: local + favorites + an online **Wallhaven browser** (search,
-    sort, download); set, star favorites, and a timed **rotation** that
-    re-themes on each change.
-  - Configurable bar widgets, tray, tools, weather, and dependency overview.
-  - **Keybindings**: assign Hyprland shortcuts for the shell's actions in-app
-    (unbound by default; applied live via a generated Lua bind file).
-  - **Hyprland**: arrange monitors on a **visual drag canvas** (reposition +
-    edge-snap) and tune resolution / scale / rotation, plus
-    appearance (gaps, borders, rounding, blur, shadow) and input (keyboard,
-    mouse, layout) — all as an **override layer**: only what you change is written
-    (to a generated Lua file); your own config is never touched. Display changes
-    confirm-or-revert on a countdown. Requires the Lua config (like Keybindings).
-- **Liquid panel corners** — panels are SDF metaballs that smooth-merge into a
-  rounded screen frame as they deploy.
-- **Per-monitor workspaces** — every screen gets its own 1–10 range, with
-  Super+N switch / Super+Shift+N move.
+- **Top bar**: per-monitor workspaces with live window thumbnails on hover,
+  clock, window title, system tray, notifications, power, and an optional
+  status group (network, Bluetooth, microphone, audio, battery).
+- **App launcher**: type anywhere to search, arrow-key navigation across the
+  grid, pinned apps you can reorder by dragging, recommendations ranked by
+  frequency and recency, and right-click menus. It opens from the bottom of the
+  screen.
+- **Notification center**: popups and a history panel. Clicking a notification
+  focuses or launches its app, and reveals its special workspace if the app is
+  parked in one. Includes a do-not-disturb toggle.
+- **Dashboard**: profile, weather, calendar (with khal events), system stats,
+  quick settings (volume, brightness, Wi-Fi, VPN, Bluetooth), media controls
+  and an audio visualizer. Media covers MPRIS players plus a realtime YouTube
+  Music companion, and pauses one player when another starts.
+- **System tray**: hide items per app, left-click to toggle an app's special
+  workspace, choose per app whether it launches straight into that workspace,
+  and pin apps that have no tray icon (run a command or toggle a workspace).
+- **Tools toolbar**: an optional dock on the right edge with your own buttons
+  (name, command, icon picked from a list). A wallpaper and theme picker is
+  built in.
+- **Lock screen**: a session lock that survives a shell hot reload.
+- **Settings app**, all changes applied live:
+  - **Appearance**: frame, top bar only or floating islands.
+  - **Themes**: built-in Material You themes, plus creating, duplicating,
+    renaming, deleting, importing and exporting your own. Themes can also be
+    generated from the wallpaper with `matugen`.
+  - **Wallpaper**: local images, favorites, a [Wallhaven](https://wallhaven.cc)
+    browser (search, sort, download) and a timed rotation that re-themes on
+    each change.
+  - **Keybindings**: Hyprland shortcuts for the shell's actions. None are bound
+    by default.
+  - **Hyprland**: drag monitors around a visual layout (with edge snapping),
+    set resolution, scale and rotation, and tune gaps, borders, rounding, blur,
+    shadows and input. Only the values you change are written, to a generated
+    Lua file loaded after your own config, which is never modified. Display
+    changes revert after a countdown unless you confirm them.
+  - Bar widgets, tray, tools, weather and a list of optional dependencies.
+- **Per-monitor workspaces**: each screen gets its own workspaces 1 to 10,
+  with Super+N to switch and Super+Shift+N to move the active window.
 
 ## Requirements
 
 | | |
 |---|---|
-| **Compositor** | Hyprland 0.55+ with the **Lua** config system |
-| **Shell** | [`quickshell`](https://quickshell.outfoxxed.me) (git/0.3.x) |
-| **Build** | `cmake`, `make`, a C++20 compiler, **Qt 6.8+** (Core, Qml, Quick, ShaderTools) |
-| **VCS** | `git` |
+| **Compositor** | Hyprland 0.55+ with the **Lua** config |
+| **Shell** | [`quickshell`](https://quickshell.outfoxxed.me) 0.3 or git |
+| **Build** | `git`, `cmake`, `make`, a C++20 compiler, **Qt 6.8+** (Core, Qml, Quick, ShaderTools) |
 
 ### Optional runtime dependencies
 
-Each lights up a feature; the shell runs without them and Settings →
-Dependencies shows what's missing.
+The shell runs without these. Each one enables a feature, and Settings →
+Dependencies shows which are missing.
 
 | Tool | Enables |
 |---|---|
-| `matugen` + `hyprpaper` | Wallpaper switcher + Material You theme generation |
-| `magick` (imagemagick) | Auto light/dark mode from wallpaper (else defaults dark) |
+| `hyprpaper` + `matugen` | Wallpaper switching and Material You themes from the wallpaper |
+| `magick` (imagemagick) | Light or dark theme picked from the wallpaper's brightness (dark otherwise) |
 | `cava` | Audio visualizer |
 | `brightnessctl` | Brightness control |
-| `secret-tool` (libsecret) | Keyring for tokens (e.g. YT Music) |
-| `qt6-websockets` (Qt module) | YouTube Music companion (realtime) |
-| `khal` (+ `vdirsyncer`) | Calendar events (+ create/sync) |
-| `nmcli` (networkmanager) | VPN section in the network panel |
-| `wpctl` (wireplumber) | Bluetooth audio-profile switching (A2DP ↔ headset) |
-| `curl` | Downloading wallpapers from the online (Wallhaven) browser |
+| `secret-tool` (libsecret) | Keyring storage for tokens (YouTube Music) |
+| `qt6-websockets` (Qt module) | Realtime YouTube Music companion |
+| `khal` (+ `vdirsyncer`) | Calendar events (+ creating and syncing them) |
+| `nmcli` (networkmanager) | VPN section of the network panel |
+| `wpctl` (wireplumber) | Bluetooth audio profile switching (A2DP or headset) |
+| `curl` | Downloads from the Wallhaven browser |
 
-The **network and Bluetooth panels are full in-shell managers** — no
-nm-connection-editor or blueman needed. Wi-Fi (list, connect with password,
-forget, radio toggle), Bluetooth (scan, pair, connect, trust, forget, rename,
-battery) and battery alerts all use Quickshell's native
-NetworkManager/BlueZ/UPower bindings and the shell's own notifications. Weather
-and the YouTube Music companion use Qt's built-in HTTP client (no `curl`). Each
-missing tool above just hides its feature; Settings → Dependencies shows what's
-absent. For advanced Wi-Fi config (static IP, enterprise 802.1x, VPN editing)
-use your preferred NetworkManager front-end.
+Wi-Fi (scan, connect with a password, forget, radio toggle), Bluetooth (scan,
+pair, connect, trust, forget, rename, battery) and battery alerts are handled
+in the shell through Quickshell's NetworkManager, BlueZ and UPower bindings, so
+nm-connection-editor and blueman aren't needed. For static IPs, 802.1X or VPN
+editing, use a NetworkManager front-end.
 
-The tools toolbar is **user-defined**: add your own buttons in Settings → Tools
-(name + command + icon), so anything you'd launch — a file manager, screen
-recorder, Docker UI — is your choice, not a bundled dependency. The wallpaper /
-theme picker is the one built-in tool (uses `matugen`).
+Media uses Quickshell's MPRIS support, so `playerctl` isn't needed. The YouTube
+Music companion talks to the ytmdesktop server over a WebSocket and doesn't
+need Node.
 
-Media (play/pause/next, metadata) uses Quickshell's native MPRIS — no
-`playerctl` needed. The optional YouTube Music companion talks to the
-ytmdesktop server directly over a WebSocket — no Node. It needs the
-`qt6-websockets` Qt module; without it the companion stays off and MPRIS is the
-source of truth.
-Screenshots, clipboard and idle-lock are **Hyprland-side**:
-wire your own `hyprland.lua` binds (e.g. `grim`/`slurp`/`wl-copy`) and run an
-idle daemon (e.g. `hypridle` calling `qs -p <shell dir> ipc call lock lock`) if
-you want them.
+Screenshots, clipboard and idle locking are left to Hyprland: add your own
+binds in `hyprland.lua` (e.g. `grim`, `slurp`, `wl-copy`) and an idle daemon,
+e.g. `hypridle` running `scottbass3-shell ipc call lock lock` (or
+`~/.config/quickshell/launch.sh ipc call lock lock` from a git checkout).
 
 ## Install
 
-**AUR** (Arch Linux) — installs to `/etc/xdg/quickshell/scottbass3-shell`:
+**AUR** (Arch Linux), installed to `/etc/xdg/quickshell/scottbass3-shell`:
 
 ```sh
 yay -S scottbass3-shell-git
 ```
 
-**Nix** (flake) — add the input and install the package:
+**Nix** (flake), add the input and install the package:
 
 ```nix
 inputs.scottbass3-shell.url = "github:scottbass3/shell";
@@ -126,16 +113,18 @@ inputs.scottbass3-shell.url = "github:scottbass3/shell";
 environment.systemPackages = [ inputs.scottbass3-shell.packages.${pkgs.stdenv.hostPlatform.system}.default ];
 ```
 
-The package puts `quickshell` and the optional tools on the launcher's `PATH`;
-the shell lives in `share/scottbass3-shell` of the package.
+The package bundles `quickshell` and the lightweight optional tools (hyprpaper,
+matugen, imagemagick, cava, brightnessctl, curl, libsecret). The shell itself
+is in the package's `share/scottbass3-shell`.
 
-**One-liner** (clones to `~/.config/quickshell`, builds the plugin):
+**Git checkout**, with the install script (clones to `~/.config/quickshell` and
+builds the plugin):
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/scottbass3/shell/main/install.sh | bash
 ```
 
-**Manual:**
+or by hand:
 
 ```sh
 git clone https://github.com/scottbass3/shell ~/.config/quickshell
@@ -144,71 +133,71 @@ cd ~/.config/quickshell
 ```
 
 `install.sh` builds the bundled `Caelestia.Blobs` Qt plugin into
-`./Caelestia/Blobs` (found via `launch.sh`'s `QML_IMPORT_PATH`), installs the
-optional YouTube Music bridge deps, and prints the Hyprland steps.
+`./Caelestia/Blobs`, lists which optional tools are installed and prints the
+Hyprland steps.
 
 ## Hyprland integration
 
-Add to the **end** of your `hyprland.lua`, for the AUR package:
+Add this at the **end** of your `hyprland.lua`. For the AUR package:
 
 ```lua
 loadfile("/etc/xdg/quickshell/scottbass3-shell/hypr/quickshell.lua")()
 ```
 
-for Nix, with the package's store path (e.g. interpolated from home-manager):
+For Nix, with the package's store path (e.g. interpolated from home-manager):
 
 ```lua
 loadfile("${scottbass3-shell}/share/scottbass3-shell/hypr/quickshell.lua")()
 ```
 
-or for a git checkout:
+For a git checkout:
 
 ```lua
 loadfile(os.getenv("HOME") .. "/.config/quickshell/hypr/quickshell.lua")()
 ```
 
-This sets `misc.allow_session_lock_restore`, autostarts the shell, binds the
-per-monitor workspaces (`SUPER + 1..0`, Shift = move window), and sources the
-generated shell-action binds plus the Settings → Hyprland override file — both
-loaded last so they layer over your own config without overwriting it.
+This sets `misc.allow_session_lock_restore`, starts the shell, binds the
+per-monitor workspaces (`SUPER + 1..0`, add Shift to move the window) and loads
+the files generated by Settings (keybindings and Hyprland overrides). They're
+loaded last, so they apply on top of your config without changing it.
 
-**Shell-action shortcuts** (app launcher, settings, lock, tools, scratchpad) are
-**unbound by default**. Set them in **Settings → Keybindings** — each saved combo
-is written to `~/.local/state/scottbass3-shell/binds.generated.lua` and applied
-with `hyprctl reload`. Until
-you bind anything, open the launcher from the bar button and Settings from the
-dashboard gear icon.
+The shell's shortcuts (launcher, settings, lock, tools, scratchpad) are
+**not bound by default**. Set them in **Settings → Keybindings**: they're
+written to `~/.local/state/scottbass3-shell/binds.generated.lua` and applied
+with `hyprctl reload`. Until then, open the launcher from the bar button and
+Settings from the gear icon in the dashboard.
 
-In a git checkout, edit `hypr/quickshell.lua` to taste (the AUR copy is
-replaced on every update — copy it elsewhere and `loadfile` your copy
-instead). Apps that should open straight into a
-special workspace are set in Settings → Tray → *Launch in special workspace*
-(written to `hypr.generated.lua` as window rules, each one switchable).
+Apps that should open directly in a special workspace are set in Settings →
+Tray → *Launch in special workspace*, which writes window rules you can switch
+on and off.
+
+From a git checkout you can edit `hypr/quickshell.lua` directly. The AUR and
+Nix copies are replaced on every update, so copy the file somewhere else and
+`loadfile` your copy instead.
 
 ## Running manually
 
 ```sh
-scottbass3-shell &                 # AUR / Nix package
+scottbass3-shell &                 # AUR or Nix package
 ~/.config/quickshell/launch.sh &   # git checkout
 ```
 
-`launch.sh` (installed as `/usr/bin/scottbass3-shell` by the package) only adds
-the blobs plugin to `QML_IMPORT_PATH` and runs `quickshell` on its own config
-directory.
+`launch.sh` (the `scottbass3-shell` command in the packages) adds the plugin to
+`QML_IMPORT_PATH` and runs `quickshell` on its own config directory. Extra
+arguments go to `quickshell`, e.g. `scottbass3-shell ipc call settings toggle`.
 
 ## Configuration
 
-Everything is configured live in-app — press **`SUPER + I`**. Appearance mode
-(frame / top-bar / floating islands), theme designer (create / duplicate /
-export / import), bar widgets, tray (per-app hide + special workspace + custom
-non-SNI entries), tools, and weather.
+Everything is configured in the settings app: appearance, themes, wallpaper,
+bar widgets, tray, tools, weather, keybindings and Hyprland.
 
-All mutable state — settings, custom themes, pins, app-usage, generated binds —
-lives **outside the checkout** under `~/.local/state/scottbass3-shell`
-(`$XDG_STATE_HOME`). The repo stays read-only: pull updates without touching
-your config.
+Settings, custom themes, pinned apps, app usage and generated files are stored
+in `~/.local/state/scottbass3-shell` (or `$XDG_STATE_HOME/scottbass3-shell`),
+never in the shell's directory, so updates don't touch your configuration.
+State from older versions in `~/.local/state/quickshell` is moved there
+automatically.
 
 ## License
 
-[GPLv3](LICENSE). The `Caelestia.Blobs` plugin under `blobs-plugin/` derives
+[GPLv3](LICENSE). The `Caelestia.Blobs` plugin in `blobs-plugin/` is derived
 from the [Caelestia](https://github.com/caelestia-dots) project.

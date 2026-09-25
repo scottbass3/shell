@@ -571,6 +571,7 @@ Item {
     Rectangle {
         id: _pmList
         z: 61
+        MouseArea { anchors.fill: parent }   // swallow background clicks (see _calPanel)
         visible: root._playerMenu && root.tab === "media"
         width: 200
         // Originate from the dropdown button: centred on it, opening upward.
@@ -775,6 +776,7 @@ Item {
     Rectangle {
         id: _qsFlyout
         z: 30
+        MouseArea { anchors.fill: parent }   // swallow background clicks (see _calPanel)
         layer.enabled: true
         layer.effect: Elevation { level: 3 }
         visible: root.qsKey !== "" && root.qsKey !== "dnd" && _flyout.item
@@ -837,6 +839,7 @@ Item {
     Rectangle {
         z: 46
         visible: root._confirmAction !== ""
+        MouseArea { anchors.fill: parent }   // swallow background clicks (see _calPanel)
         anchors.centerIn: parent
         width: 240
         layer.enabled: true
@@ -911,6 +914,9 @@ Item {
     Rectangle {
         id: _calPanel
         z: 40
+        // Swallow clicks on the panel background so they don't reach the
+        // dismiss catcher underneath.
+        MouseArea { anchors.fill: parent }
         layer.enabled: true
         layer.effect: Elevation { level: 3 }
         visible: root.calSelectedDate !== ""

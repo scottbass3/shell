@@ -18,7 +18,7 @@ local mainMod = "SUPER"
 -- so it works from a checkout and from a system install alike.
 local qsDir = debug.getinfo(1, "S").source:match("^@(.*)/hypr/[^/]+$") or (home .. "/.config/quickshell")
 local function shq(s) return "'" .. s:gsub("'", "'\\''") .. "'" end
-local ipc   = "qs -p " .. shq(qsDir) .. " ipc call "
+local ipc   = shq(qsDir .. "/launch.sh") .. " ipc call "   -- see Paths.ipc()
 
 ------------------------------------------------------------------------------
 -- Required settings

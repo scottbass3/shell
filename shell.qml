@@ -35,6 +35,15 @@ ShellRoot {
 
     Component.onCompleted: _rebuildScreens()
 
+    // Moves state out of its old location. hypr/quickshell.lua runs the same
+    // script at Hyprland start, but after an update the shell hot-reloads first
+    // and would otherwise start from an empty state directory.
+    Process {
+        running: true
+        command: ["sh", "-c", '"$1" && hyprctl reload', "sh", Paths.configDir + "/scripts/migrate-state.sh"]
+        onExited: (code) => { if (code === 0) Quickshell.reload(false) }
+    }
+
     // Exclusive zone shim — pushes app windows below barHeight
     Variants {
         model: uniqueScreens

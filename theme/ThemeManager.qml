@@ -91,6 +91,7 @@ QtObject {
     readonly property int    spacingLg:      16
     readonly property string fontFamily:     "JetBrainsMono Nerd Font"
     readonly property int    _fontBase:      SettingsService.get("appearance.fontSize", 13)
+    readonly property int    fontSizeXs:     _fontBase - 3
     readonly property int    fontSizeSm:     _fontBase - 1
     readonly property int    fontSizeMd:     _fontBase
     readonly property int    fontSizeLg:     _fontBase + 3

@@ -261,7 +261,7 @@ PanelWindow {
                         visible: SettingsUi.category === "appearance"
                         Layout.fillWidth: true
                         Layout.margins: 20
-                        spacing: 6
+                        spacing: 8
                         SettingSection { text: "Appearance" }
                         SettingSeg {
                             label: "Overall style"
@@ -343,9 +343,9 @@ PanelWindow {
                         Text {
                             visible: !ThemeManager._isUser(ThemeManager.activeId)
                             Layout.fillWidth: true
-                            text: "Built-in themes are read-only — Duplicate one to edit its colors."
+                            text: "Built-in themes are read-only. Duplicate one to edit its colors."
                             wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
-                            font.family: ThemeManager.fontFamily; font.pixelSize: 10
+                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs
                         }
                         ColumnLayout {
                             visible: ThemeManager._isUser(ThemeManager.activeId)
@@ -358,13 +358,13 @@ PanelWindow {
                         }
                         SettingText {
                             Layout.topMargin: 6
-                            label: "Import (.json)"; sub: "Path → new theme"
+                            label: "Import theme"; sub: "Path to a .json theme, added as a new theme"
                             path: "_importPath"; def: ""; placeholder: "/path/theme.json"
+                            SettingBtn { label: "Import"; onClicked: ThemeManager.importTheme(SettingsService.get("_importPath", ""), "imported") }
                         }
                         Row {
                             Layout.topMargin: 6
                             spacing: 10
-                            SettingBtn { label: "Import"; onClicked: ThemeManager.importTheme(SettingsService.get("_importPath", ""), "imported") }
                             SettingBtn { label: "Export current theme"; onClicked: _exportTheme.running = true }
                         }
                         Text {
@@ -372,7 +372,7 @@ PanelWindow {
                             text: "Exports the active theme's colors to ~/.local/state/scottbass3-shell/exports/"
                             wrapMode: Text.WordWrap
                             color: ThemeManager.onSurfaceVariant
-                            font.family: ThemeManager.fontFamily; font.pixelSize: 10
+                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs
                         }
                         Process {
                             id: _exportTheme
@@ -389,7 +389,7 @@ PanelWindow {
                         visible: SettingsUi.category === "bar"
                         Layout.fillWidth: true
                         Layout.margins: 20
-                        spacing: 6
+                        spacing: 8
                         SettingSection { text: "Clock" }
                         SettingToggle { label: "24-hour clock"; path: "bar.clock.use24h"; def: true }
                         SettingToggle { label: "Show seconds"; path: "bar.clock.seconds"; def: false }
@@ -409,7 +409,7 @@ PanelWindow {
                         visible: SettingsUi.category === "media"
                         Layout.fillWidth: true
                         Layout.margins: 20
-                        spacing: 6
+                        spacing: 8
                         SettingSection { text: "Media player" }
                         SettingToggle { label: "Audio visualizer"; dep: "cava"; path: "media.visualizer"; def: true }
                         SettingToggle { label: "Bongo cat"; path: "media.bongo"; def: true }
@@ -421,11 +421,11 @@ PanelWindow {
                         visible: SettingsUi.category === "notifications"
                         Layout.fillWidth: true
                         Layout.margins: 20
-                        spacing: 6
+                        spacing: 8
                         SettingSection { text: "Notifications" }
                         SettingToggle { label: "Click notification opens app"; path: "notifications.clickOpensApp"; def: true }
                         SettingToggle { label: "Start in Do Not Disturb"; path: "notifications.dndDefault"; def: false }
-                        SettingSlider { label: "Toast timeout"; path: "notifications.toastMs"; def: 5000; from: 2000; to: 15000; unit: "ms" }
+                        SettingSlider { label: "Toast timeout"; path: "notifications.toastMs"; def: 5000; from: 2000; to: 15000; step: 500; displayScale: 0.001; decimals: 1; unit: "s" }
                         SettingSlider { label: "Max toast stack"; path: "notifications.toastMax"; def: 5; from: 1; to: 10; unit: "" }
                         SettingSlider { label: "History size"; sub: "Oldest notifications are dropped beyond this"; path: "notifications.maxHistory"; def: 100; from: 20; to: 500; unit: "" }
                     }
@@ -435,9 +435,9 @@ PanelWindow {
                         visible: SettingsUi.category === "weather"
                         Layout.fillWidth: true
                         Layout.margins: 20
-                        spacing: 6
+                        spacing: 8
                         SettingSection { text: "Weather" }
-                        SettingText { label: "Location"; sub: "City or lat,lon — empty = auto by IP"; path: "weather.location"; def: "Dijon"; placeholder: "auto" }
+                        SettingText { label: "Location"; sub: "City or lat,lon. Leave empty to detect it from your IP"; path: "weather.location"; def: "Dijon"; placeholder: "auto" }
                         SettingToggle { label: "Fahrenheit"; sub: "Off = Celsius"; path: "weather.fahrenheit"; def: false }
                         SettingSlider { label: "Refresh interval"; path: "weather.refreshMin"; def: 30; from: 5; to: 120; unit: "min" }
                     }
@@ -447,7 +447,7 @@ PanelWindow {
                         visible: SettingsUi.category === "keybindings"
                         Layout.fillWidth: true
                         Layout.margins: 20
-                        spacing: 6
+                        spacing: 8
                         SettingSection { text: "Keybindings" }
                         Text {
                             Layout.fillWidth: true; Layout.bottomMargin: 4
@@ -493,7 +493,7 @@ PanelWindow {
                         onVisibleChanged: if (visible) HyprlandConfigService.refreshClients()
                         Layout.fillWidth: true
                         Layout.margins: 20
-                        spacing: 6
+                        spacing: 8
 
                         // Custom entries (non-SNI apps) -----------------------------
                         SettingSection { text: "Custom entries" }
@@ -548,7 +548,7 @@ PanelWindow {
                                         Text {
                                             Layout.fillWidth: true; elide: Text.ElideRight
                                             text: (_ce._ws ? "Toggle workspace · " : "Run · ") + ((_ce.modelData.value && _ce.modelData.value !== "") ? _ce.modelData.value : "not set")
-                                            color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs ?? 11
+                                            color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs
                                         }
                                     }
                                     SettingBtn { label: "Edit"; onClicked: root._trayEditIdx = _ce.index }
@@ -575,7 +575,7 @@ PanelWindow {
                                         ColumnLayout {
                                             Layout.fillWidth: true; spacing: 2
                                             Text { text: "Label (tooltip on hover)"; color: ThemeManager.onSurfaceVariant
-                                                   font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs ?? 11 }
+                                                   font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs }
                                             TextField {
                                                 Layout.fillWidth: true; implicitHeight: 28
                                                 text: _ce.modelData.name ?? ""; placeholderText: "e.g. Firefox"
@@ -591,9 +591,9 @@ PanelWindow {
                                     // Icon field
                                     ColumnLayout {
                                         Layout.fillWidth: true; spacing: 2
-                                        Text { text: "Icon — freedesktop name (e.g. firefox, spotify) or /path/to/icon.png"
+                                        Text { text: "Icon: freedesktop name (e.g. firefox, spotify) or /path/to/icon.png"
                                                color: ThemeManager.onSurfaceVariant
-                                               font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs ?? 11 }
+                                               font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs }
                                         TextField {
                                             Layout.fillWidth: true; implicitHeight: 28
                                             text: _ce.modelData.icon ?? ""; placeholderText: "firefox"
@@ -609,7 +609,7 @@ PanelWindow {
                                     ColumnLayout {
                                         Layout.fillWidth: true; spacing: 4
                                         Text { text: "On left-click"; color: ThemeManager.onSurfaceVariant
-                                               font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs ?? 11 }
+                                               font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs }
                                         Row {
                                             spacing: 0
                                             Repeater {
@@ -648,7 +648,7 @@ PanelWindow {
                                                 ? "Click peeks/hides that Hyprland special workspace (park the app there via a window rule)."
                                                 : "Click runs this shell command (launches or focuses the app)."
                                             color: ThemeManager.onSurfaceVariant
-                                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs ?? 11
+                                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs
                                         }
                                     }
 
@@ -747,7 +747,7 @@ PanelWindow {
                                         text: _sr.hit === null ? "Invalid regex"
                                             : (_sr.hit !== "" ? "Matches open window: " + _sr.hit : "No open window matches")
                                         color: _sr.hit === null ? ThemeManager.error : ThemeManager.onSurfaceVariant
-                                        font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs ?? 11
+                                        font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs
                                     }
                                 }
                                 Text { text: "special:"; color: ThemeManager.onSurfaceVariant; opacity: _sr.on ? 1 : 0.5
@@ -808,7 +808,7 @@ PanelWindow {
                         visible: SettingsUi.category === "tools"
                         Layout.fillWidth: true
                         Layout.margins: 20
-                        spacing: 6
+                        spacing: 8
                         SettingSection { text: "Tools toolbar" }
                         SettingToggle { label: "Enable toolbar"; path: "tools.enabled"; def: true }
                         SettingToggle { label: "Wallpaper picker"; sub: "Built-in background/theme tool"; dep: "matugen"; path: "tools.wallpaper"; def: true }
@@ -816,7 +816,7 @@ PanelWindow {
                         SettingSection { text: "Custom tools"; Layout.topMargin: 12 }
                         Text {
                             Layout.fillWidth: true; Layout.bottomMargin: 2
-                            text: "Add your own rail buttons — each runs a command. Examples: file manager (kitty -e yazi), screen record (wf-recorder -g \"$(slurp)\" -f ~/rec.mp4)."
+                            text: "Add your own rail buttons, each running a command. Examples: file manager (kitty -e yazi), screen record (wf-recorder -g \"$(slurp)\" -f ~/rec.mp4)."
                             wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
                             font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
                         }
@@ -856,7 +856,7 @@ PanelWindow {
                                         Text {
                                             Layout.fillWidth: true; elide: Text.ElideRight
                                             text: (_tc.modelData.command && _tc.modelData.command !== "") ? _tc.modelData.command : "no command"
-                                            color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs ?? 11
+                                            color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs
                                         }
                                     }
                                     SettingBtn { label: "Edit"; onClicked: root._toolEditIdx = _tc.index }
@@ -873,7 +873,7 @@ PanelWindow {
                                     ColumnLayout {
                                         Layout.fillWidth: true; spacing: 2
                                         Text { text: "Name (tooltip)"; color: ThemeManager.onSurfaceVariant
-                                               font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs ?? 11 }
+                                               font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs }
                                         TextField {
                                             Layout.fillWidth: true; implicitHeight: 28
                                             text: _tc.modelData.name ?? ""; placeholderText: "e.g. Files"
@@ -887,7 +887,7 @@ PanelWindow {
                                     ColumnLayout {
                                         Layout.fillWidth: true; spacing: 2
                                         Text { text: "Command"; color: ThemeManager.onSurfaceVariant
-                                               font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs ?? 11 }
+                                               font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs }
                                         TextField {
                                             Layout.fillWidth: true; implicitHeight: 28
                                             text: _tc.modelData.command ?? ""; placeholderText: "kitty -e yazi"
@@ -902,7 +902,7 @@ PanelWindow {
                                     ColumnLayout {
                                         Layout.fillWidth: true; spacing: 4
                                         Text { text: "Icon"; color: ThemeManager.onSurfaceVariant
-                                               font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs ?? 11 }
+                                               font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs }
                                         Flow {
                                             Layout.fillWidth: true; spacing: 4
                                             Repeater {
@@ -941,7 +941,7 @@ PanelWindow {
                         visible: SettingsUi.category === "wallpaper"
                         Layout.fillWidth: true
                         Layout.margins: 20
-                        spacing: 6
+                        spacing: 8
 
                         readonly property var _localList: WallpaperService.wallpapers
                         readonly property var _favList:   WallpaperService.favorites
@@ -951,7 +951,7 @@ PanelWindow {
                         Text {
                             visible: !WallpaperService.available
                             Layout.fillWidth: true
-                            text: "hyprpaper not installed — the wallpaper switcher is disabled."
+                            text: "hyprpaper is not installed, so the wallpaper switcher is disabled."
                             wrapMode: Text.WordWrap; color: ThemeManager.error
                             font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
                         }
@@ -984,7 +984,7 @@ PanelWindow {
                         Text {
                             visible: root._wpTab !== "browse" && _wpPane._shownList.length === 0
                             Layout.topMargin: 8
-                            text: root._wpTab === "favorites" ? "No favorites yet — tap the heart on a wallpaper."
+                            text: root._wpTab === "favorites" ? "No favorites yet. Click the heart on a wallpaper to add one."
                                                               : "No wallpapers in ~/wallpaper."
                             color: ThemeManager.onSurfaceVariant
                             font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
@@ -993,10 +993,14 @@ PanelWindow {
 
                         // ── Local / Favorites thumbnail grid ──────────────────────
                         Flow {
+                            id: _wpGrid
                             visible: root._wpTab !== "browse"
                             Layout.fillWidth: true
                             Layout.topMargin: 6
                             spacing: 8
+                            // Tiles stretch so the row is filled instead of ending in a gap.
+                            readonly property int  _cols:  Math.max(2, Math.floor((width + spacing) / (150 + spacing)))
+                            readonly property real _tileW: Math.floor((width - (_cols - 1) * spacing) / _cols)
                             Repeater {
                                 model: root._wpTab === "browse" ? [] : _wpPane._shownList
                                 delegate: ClippingRectangle {
@@ -1006,7 +1010,7 @@ PanelWindow {
                                     readonly property string _path: "" + modelData
                                     readonly property bool _isCurrent: WallpaperService.current === _path
                                     readonly property bool _inRot: WallpaperService.isInRotation(_path)
-                                    width: 168; height: 96
+                                    width: _wpGrid._tileW; height: Math.round(width * 9 / 16)
                                     radius: ThemeManager.chipRadius
                                     color: ThemeManager.surfaceContainerHigh
 
@@ -1127,7 +1131,7 @@ PanelWindow {
                                 Layout.fillWidth: true
                                 text: "Browsing works, but downloading a wallpaper needs curl (install it to set/favorite from here)."
                                 wrapMode: Text.WordWrap; color: ThemeManager.error
-                                font.family: ThemeManager.fontFamily; font.pixelSize: 10
+                                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs
                             }
                             Text {
                                 visible: WallhavenService.error !== ""
@@ -1147,15 +1151,18 @@ PanelWindow {
                             }
 
                             Flow {
+                                id: _wpBrowseGrid
                                 Layout.fillWidth: true
                                 spacing: 8
+                                readonly property int  _cols:  Math.max(2, Math.floor((width + spacing) / (150 + spacing)))
+                                readonly property real _tileW: Math.floor((width - (_cols - 1) * spacing) / _cols)
                                 Repeater {
                                     model: root._wpTab === "browse" ? WallhavenService.results : []
                                     delegate: ClippingRectangle {
                                         id: _rtile
                                         required property var modelData
                                         readonly property bool _busy: WallpaperService.downloadingId === ("" + modelData.id)
-                                        width: 168; height: 96
+                                        width: _wpBrowseGrid._tileW; height: Math.round(width * 9 / 16)
                                         radius: ThemeManager.chipRadius
                                         color: ThemeManager.surfaceContainerHigh
 
@@ -1207,7 +1214,7 @@ PanelWindow {
                             SettingText {
                                 Layout.topMargin: 10
                                 label: "Wallhaven API key"
-                                sub: "Optional — only needed to browse NSFW results"
+                                sub: "Optional, only needed to browse NSFW results"
                                 path: "wallpaper.wallhavenKey"
                                 placeholder: "from wallhaven.cc/settings/account"
                             }
@@ -1217,7 +1224,7 @@ PanelWindow {
                         SettingSection { text: "Rotation"; Layout.topMargin: 14 }
                         SettingRowBase {
                             label: "Rotate wallpapers"
-                            sub: WallpaperService.rotationPaths.length + " selected — Ctrl-click a wallpaper to add, Shift-click for a range"
+                            sub: WallpaperService.rotationPaths.length + " selected. Ctrl-click a wallpaper to add it, Shift-click for a range"
                             Rectangle {
                                 implicitWidth: 40; implicitHeight: 22; radius: 11
                                 opacity: WallpaperService.rotationPaths.length > 1 ? 1 : 0.4
@@ -1267,7 +1274,7 @@ PanelWindow {
                             Layout.fillWidth: true; Layout.topMargin: 2
                             text: "Each change re-generates the Material You theme from the new wallpaper."
                             wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
-                            font.family: ThemeManager.fontFamily; font.pixelSize: 10; opacity: 0.7
+                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs; opacity: 0.7
                         }
                     }
 
@@ -1277,7 +1284,7 @@ PanelWindow {
                         visible: SettingsUi.category === "hyprland"
                         Layout.fillWidth: true
                         Layout.margins: 20
-                        spacing: 6
+                        spacing: 8
 
                         SettingSection { text: "Hyprland" }
                         Text {
@@ -1357,7 +1364,7 @@ PanelWindow {
                                 Layout.fillWidth: true
                                 text: "Drag a screen to reposition it; it snaps to its neighbours' edges. Click to select and edit its settings below."
                                 wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
-                                font.family: ThemeManager.fontFamily; font.pixelSize: 10; opacity: 0.7
+                                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs; opacity: 0.7
                             }
 
                             // ── Visual layout canvas ──────────────────────────────────
@@ -1505,10 +1512,10 @@ PanelWindow {
                                         Text {
                                             Layout.fillWidth: true
                                             text: _det.m ? (_det.m.width + "×" + _det.m.height + " @" + Number(_det.m.refreshRate).toFixed(0) + "Hz") : ""
-                                            color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: 10
+                                            color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs
                                             elide: Text.ElideRight
                                         }
-                                        Text { text: "On"; color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: 10 }
+                                        Text { text: "On"; color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs }
                                         Rectangle {
                                             implicitWidth: 40; implicitHeight: 22; radius: 11
                                             color: _det._on ? ThemeManager.primary : ThemeManager.surfaceContainerHigh
@@ -1555,7 +1562,7 @@ PanelWindow {
                                                     color: sel ? Qt.rgba(ThemeManager.primary.r, ThemeManager.primary.g, ThemeManager.primary.b, 0.18) : ThemeManager.surfaceContainerHigh
                                                     border.width: 1; border.color: ThemeManager.outlineVariant
                                                     Text { id: _dmo; anchors.centerIn: parent; text: modelData
-                                                           color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: 10 }
+                                                           color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs }
                                                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                                                                 onClicked: { HyprlandConfigService.stageMonitor(_det._mn, "mode", modelData); _dispTab._detModeOpen = false } }
                                                 }
@@ -1644,7 +1651,7 @@ PanelWindow {
                                     Layout.fillWidth: true
                                     text: "Display changes ask for confirmation and auto-revert after 15 s if not kept."
                                     wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
-                                    font.family: ThemeManager.fontFamily; font.pixelSize: 10; opacity: 0.7
+                                    font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs; opacity: 0.7
                                 }
                             }
                         }
@@ -1687,7 +1694,7 @@ PanelWindow {
 
                             SettingSection { text: "Keyboard" }
                             SettingText { label: "Layout";  path: "hypr.input.kb_layout";  def: ""; placeholder: HyprlandConfigService.live("input:kb_layout", "us"); applyFn: () => HyprlandConfigService.applyLive() }
-                            SettingText { label: "Variant"; path: "hypr.input.kb_variant"; def: ""; placeholder: HyprlandConfigService.live("input:kb_variant", "—"); applyFn: () => HyprlandConfigService.applyLive() }
+                            SettingText { label: "Variant"; path: "hypr.input.kb_variant"; def: ""; placeholder: HyprlandConfigService.live("input:kb_variant", "none"); applyFn: () => HyprlandConfigService.applyLive() }
 
                             SettingSection { text: "Mouse & touchpad" }
                             SettingText   { label: "Sensitivity"; sub: "−1.0 to 1.0"; path: "hypr.input.sensitivity"; def: ""; placeholder: "" + HyprlandConfigService.live("input:sensitivity", 0); applyFn: () => HyprlandConfigService.applyLive() }
@@ -1715,7 +1722,7 @@ PanelWindow {
                         visible: SettingsUi.category === "dependencies"
                         Layout.fillWidth: true
                         Layout.margins: 20
-                        spacing: 6
+                        spacing: 8
                         SettingSection { text: "Optional dependencies" }
                         Text {
                             Layout.fillWidth: true; Layout.bottomMargin: 6
@@ -1738,7 +1745,7 @@ PanelWindow {
                                     Text { text: modelData + "  ·  " + DependencyService.desc(modelData)
                                            color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
                                     Text { visible: !parent.parent.ok; text: "install: " + DependencyService.pkg(modelData)
-                                           color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: 10 }
+                                           color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs }
                                 }
                             }
                         }
@@ -1764,7 +1771,19 @@ PanelWindow {
                         Row {
                             spacing: 10
                             SettingBtn { label: "Open settings.json"; onClicked: _open.running = true }
-                            SettingBtn { label: "Reset to defaults"; danger: true; onClicked: SettingsService.reset() }
+                            // Wipes every setting, so it takes a second click within 4 s.
+                            SettingBtn {
+                                id: _resetBtn
+                                property bool armed: false
+                                label: armed ? "Click again to reset" : "Reset to defaults"
+                                danger: true
+                                onClicked: {
+                                    if (!armed) { armed = true; _disarm.restart(); return }
+                                    armed = false
+                                    SettingsService.reset()
+                                }
+                                Timer { id: _disarm; interval: 4000; onTriggered: _resetBtn.armed = false }
+                            }
                         }
                         Process { id: _open; command: ["xdg-open", SettingsService._path]; running: false }
                     }
@@ -1855,7 +1874,11 @@ PanelWindow {
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 0
+            // A layout only stretches if one of its children can: without this
+            // spacer every row (and its page) collapses to its natural width,
+            // leaving controls stuck to their labels instead of right-aligned.
             RowLayout {
+                Layout.fillWidth: true
                 spacing: 6
                 Text { text: rowBase.label; color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeMd }
                 Rectangle {
@@ -1865,9 +1888,10 @@ PanelWindow {
                     Text { id: _dt; anchors.centerIn: parent; text: "needs " + (rowBase.dep ? DependencyService.pkg(rowBase.dep) : "")
                            color: ThemeManager.error; font.family: ThemeManager.fontFamily; font.pixelSize: 9 }
                 }
+                Item { Layout.fillWidth: true }
             }
             Text { visible: rowBase.sub !== ""; text: rowBase.sub; color: ThemeManager.onSurfaceVariant
-                   font.family: ThemeManager.fontFamily; font.pixelSize: 10 }
+                   font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs }
         }
     }
     component SettingToggle: SettingRowBase {
@@ -1897,10 +1921,14 @@ PanelWindow {
         property real from: 0
         property real to: 100
         property string unit: ""
+        property real step: 1
+        property real displayScale: 1   // e.g. 0.001 to show a ms setting in seconds
+        property int  decimals: 0
         property var applyFn: null
         readonly property real val: SettingsService.get(path, def)
-        Text { text: Math.round(sl.val) + sl.unit; color: ThemeManager.onSurfaceVariant
-               font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm; Layout.rightMargin: 8 }
+        Text { text: (sl.val * sl.displayScale).toFixed(sl.decimals) + sl.unit; color: ThemeManager.onSurfaceVariant
+               font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+               Layout.preferredWidth: 56; horizontalAlignment: Text.AlignRight; Layout.rightMargin: 8 }
         Rectangle {
             id: track
             Layout.preferredWidth: 160; implicitHeight: 6; radius: 3
@@ -1916,7 +1944,7 @@ PanelWindow {
                 onReleased: if (sl.applyFn) sl.applyFn()
                 function _set(x) {
                     const f = Math.max(0, Math.min(1, (x - 6) / track.width))
-                    SettingsService.set(sl.path, Math.round(sl.from + f * (sl.to - sl.from)))
+                    SettingsService.set(sl.path, Math.round((sl.from + f * (sl.to - sl.from)) / sl.step) * sl.step)
                 }
             }
         }

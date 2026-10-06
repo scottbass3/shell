@@ -88,6 +88,16 @@ ShellRoot {
             if (action === "move") Hyprland.dispatch('hl.dsp.window.move({workspace = ' + ws + '})')
             else                   Hyprland.dispatch('hl.dsp.focus({workspace = ' + ws + '})')
         }
+        // Next/previous workspace number within the focused monitor's range
+        // (created if needed). Hyprland's own "+1"/"-1" would cross into the
+        // neighbouring monitor's range; nothing happens at either end.
+        function step(delta: string, action: string): void {
+            const d = parseInt(delta); if (isNaN(d)) return
+            const mon = Hyprland.focusedMonitor
+            const cur = mon?.activeWorkspace?.id ?? 0
+            const n = cur - (mon ? mon.id : 0) * 10 + d
+            if (n >= 1 && n <= 10) go(String(n), action)
+        }
     }
 
     // Scratchpad:  qs ipc call scratchpad toggle

@@ -7,9 +7,10 @@ import "../services"
 Item {
     id: root
 
+    // Sized by the action list even while confirming: shrinking to the smaller
+    // confirm view would leave the cursor outside and close the popout.
     implicitWidth:  180
-    implicitHeight: (_confirm === "" ? _col.implicitHeight : _confirmCol.implicitHeight)
-                    + ThemeManager.spacingLg * 2
+    implicitHeight: _col.implicitHeight + ThemeManager.spacingLg * 2
 
     // Pending dangerous action awaiting confirmation ("" | "reboot" | "shutdown")
     property string _confirm: ""
@@ -60,7 +61,7 @@ Item {
         id: _confirmCol
         visible: root._confirm !== ""
         anchors {
-            top: parent.top; left: parent.left; right: parent.right
+            verticalCenter: parent.verticalCenter; left: parent.left; right: parent.right
             margins: ThemeManager.spacingLg
         }
         spacing: 8

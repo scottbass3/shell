@@ -427,6 +427,7 @@ PanelWindow {
                         SettingToggle { label: "Start in Do Not Disturb"; path: "notifications.dndDefault"; def: false }
                         SettingSlider { label: "Toast timeout"; path: "notifications.toastMs"; def: 5000; from: 2000; to: 15000; unit: "ms" }
                         SettingSlider { label: "Max toast stack"; path: "notifications.toastMax"; def: 5; from: 1; to: 10; unit: "" }
+                        SettingSlider { label: "History size"; sub: "Oldest notifications are dropped beyond this"; path: "notifications.maxHistory"; def: 100; from: 20; to: 500; unit: "" }
                     }
 
                     // Weather -------------------------------------------------------

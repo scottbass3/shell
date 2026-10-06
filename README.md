@@ -23,9 +23,11 @@ merge into a rounded screen frame.
   grid, pinned apps you can reorder by dragging, recommendations ranked by
   frequency and recency, and right-click menus. It opens from the bottom of the
   screen.
-- **Notification center**: popups and a history panel. Clicking a notification
-  focuses or launches its app, and reveals its special workspace if the app is
-  parked in one. Includes a do-not-disturb toggle.
+- **Notification center**: popups and a history panel with action buttons,
+  images and relative times. Clicking a notification focuses or launches its
+  app, and reveals its special workspace if the app is parked in one. The
+  history survives shell reloads and keeps notifications the app has
+  withdrawn. Includes a do-not-disturb toggle.
 - **Dashboard**: profile, weather, calendar (with khal events), system stats,
   quick settings (volume, brightness, Wi-Fi, VPN, Bluetooth), media controls
   and an audio visualizer. Media covers MPRIS players plus a realtime YouTube

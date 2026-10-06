@@ -147,6 +147,7 @@ ShellRoot {
             ? NotificationService.closeCenter() : NotificationService.openCenter(null) }
         function open():   void { NotificationService.openCenter(null) }
         function close():  void { NotificationService.closeCenter() }
+        function clear():  void { NotificationService.dismissAll() }
     }
 
     // Wallpaper:  qs ipc call wallpaper set /abs/path.jpg | next | get

@@ -216,7 +216,7 @@ Item {
     // ── Session processes ─────────────────────────────────────────────────────
     // Lock uses the custom WlSessionLock (LockService), not hyprlock.
     property Process _suspendProc:  Process { command: ["systemctl", "suspend"] }
-    property Process _logoutProc:   Process { command: ["hyprctl", "dispatch", "exit"] }
+    property Process _logoutProc:   Process { command: ["hyprctl", "dispatch", "hl.dsp.exit()"] }
     property Process _rebootProc:   Process { command: ["systemctl", "reboot"] }
     property Process _shutdownProc: Process { command: ["systemctl", "poweroff"] }
 

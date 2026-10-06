@@ -29,7 +29,7 @@ merge into a rounded screen frame.
 - **Dashboard**: profile, weather, calendar (with khal events), system stats,
   quick settings (volume, brightness, Wi-Fi, VPN, Bluetooth), media controls
   and an audio visualizer. Media covers MPRIS players plus a realtime YouTube
-  Music companion, and pauses one player when another starts.
+  Music companion.
 - **System tray**: hide items per app, left-click to toggle an app's special
   workspace, choose per app whether it launches straight into that workspace,
   and pin apps that have no tray icon (run a command or toggle a workspace).

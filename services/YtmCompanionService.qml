@@ -45,8 +45,8 @@ QtObject {
     }
 
     // Enabled once the token is loaded and the feature is on. Always-on (not
-    // gated on `active`) so YT state is known globally — needed for cross-player
-    // auto-pause and always-present in the UI. socket.io is push, idle is cheap.
+    // gated on `active`) so YT state is known globally and always present in the
+    // UI. socket.io is push, idle is cheap.
     // Also requires the optional qt6-websockets QML module; without it the
     // socket never loads and MPRIS remains the source of truth.
     readonly property bool _enabled: _token !== ""

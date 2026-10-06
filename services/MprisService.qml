@@ -132,57 +132,9 @@ QtObject {
     readonly property bool canLoop:      ytmActive ? true  : (active?.loopSupported    ?? false)
     readonly property int  loopState: { const _ = root._tick; return active?.loopState ?? MprisLoopState.None }
 
-    // Pause every player that's currently playing except `except`
-    // (handles both MPRIS players and the YouTube Music companion).
-    function _pauseOthers(except) {
-        for (const p of players) {
-            if (p === except) continue
-            if (p === YtmCompanionService) {
-                if (YtmCompanionService.playing) YtmCompanionService.playPause()
-            } else if (p.playbackState === MprisPlaybackState.Playing && p.canTogglePlaying) {
-                p.togglePlaying()
-            }
-        }
-    }
-
     function playPause() {
-        if (ytmActive) {
-            if (!YtmCompanionService.playing) _pauseOthers(YtmCompanionService)   // about to start
-            YtmCompanionService.playPause()
-            return
-        }
-        if (!active?.canTogglePlaying) return
-        // Starting playback → pause any other player that's currently playing
-        if (active.playbackState !== MprisPlaybackState.Playing) _pauseOthers(active)
-        active.togglePlaying()
-    }
-
-    // Auto-pause others when YT Music starts playing — even from the app itself
-    // (the companion pushes the play state, which we watch here).
-    property bool _ytmWasPlaying: false
-    property Connections _ytmWatch: Connections {
-        target: YtmCompanionService
-        function onPlayingChanged() {
-            if (YtmCompanionService.playing && !root._ytmWasPlaying)
-                root._pauseOthers(YtmCompanionService)
-            root._ytmWasPlaying = YtmCompanionService.playing
-        }
-    }
-
-    // Auto-pause others when any MPRIS player starts playing (incl. from the app).
-    // One Connections per live player; a →Playing transition pauses the rest.
-    property Instantiator _mprisWatch: Instantiator {
-        model: root.players
-        delegate: Connections {
-            required property var modelData
-            target: modelData
-            ignoreUnknownSignals: true   // companion sentinel has no such signal
-            function onPlaybackStateChanged() {
-                if (modelData !== YtmCompanionService &&
-                    modelData.playbackState === MprisPlaybackState.Playing)
-                    root._pauseOthers(modelData)
-            }
-        }
+        if (ytmActive) { YtmCompanionService.playPause(); return }
+        if (active?.canTogglePlaying) active.togglePlaying()
     }
     function next()      { if (ytmActive) { YtmCompanionService.next(); return }     if (active?.canGoNext)     active.next() }
     function previous()  { if (ytmActive) { YtmCompanionService.previous(); return } if (active?.canGoPrevious) active.previous() }

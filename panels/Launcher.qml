@@ -274,8 +274,10 @@ Item {
                     onAccepted: { if (root._menuOpen) root._menuRun(); else root._activateSel() }
                     Keys.onDownPressed:  (e) => { if (root._menuOpen) root._menuDown(); else root._navDown(); e.accepted = true }
                     Keys.onUpPressed:    (e) => { if (root._menuOpen) root._menuUp();   else root._navUp();   e.accepted = true }
-                    Keys.onLeftPressed:  (e) => { if (!root._menuOpen) root._navLeft();  e.accepted = true }
-                    Keys.onRightPressed: (e) => { if (!root._menuOpen) root._navRight(); e.accepted = true }
+                    // Left/Right edit the text until Down enters the grid; then they move
+                    // between apps.
+                    Keys.onLeftPressed:  (e) => { if (root._idx < 0 && !root._menuOpen) { e.accepted = false; return } if (!root._menuOpen) root._navLeft();  e.accepted = true }
+                    Keys.onRightPressed: (e) => { if (root._idx < 0 && !root._menuOpen) { e.accepted = false; return } if (!root._menuOpen) root._navRight(); e.accepted = true }
                     Keys.onEscapePressed: {
                         if (root._menuOpen) root._closeMenu()
                         else if (root._searching) LauncherService.query = ""

@@ -1643,10 +1643,11 @@ PanelWindow {
                                         Layout.fillWidth: true
                                         columns: 2; columnSpacing: 12; rowSpacing: 6
 
-                                        Text { text: "Scale"; color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
+                                        Text { Layout.fillWidth: true; text: "Scale"; color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
                                         TextField {
                                             Layout.preferredWidth: 90; implicitHeight: 28
                                             text: _det.m ? "" + _det._get("scale", _det.m.scale) : ""
+                                            Layout.alignment: Qt.AlignRight
                                             color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
                                             leftPadding: 8; rightPadding: 8
                                             background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
@@ -1654,8 +1655,9 @@ PanelWindow {
                                             onEditingFinished: { const v = parseFloat(text); if (!isNaN(v)) HyprlandConfigService.stageMonitor(_det._mn, "scale", v) }
                                         }
 
-                                        Text { text: "Position (x, y)"; color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
+                                        Text { Layout.fillWidth: true; text: "Position (x, y)"; color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
                                         RowLayout {
+                                            Layout.alignment: Qt.AlignRight
                                             spacing: 6
                                             TextField {
                                                 Layout.preferredWidth: 70; implicitHeight: 28
@@ -1677,8 +1679,9 @@ PanelWindow {
                                             }
                                         }
 
-                                        Text { text: "Rotation"; color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
+                                        Text { Layout.fillWidth: true; text: "Rotation"; color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
                                         Row {
+                                            Layout.alignment: Qt.AlignRight
                                             spacing: 0
                                             Repeater {
                                                 model: [ "0°", "90°", "180°", "270°" ]

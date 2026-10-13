@@ -19,7 +19,8 @@ merge into a rounded screen frame.
 - **Top bar**: per-monitor workspaces with live window thumbnails on hover,
   clock, window title, system tray, notifications, power, and an optional
   status group (network, Bluetooth, microphone, audio, battery).
-- **App launcher**: type anywhere to search, arrow-key navigation across the
+- **App launcher**: type anywhere to search, calculate with `=` (or just type
+  `12*1.2`), copy the result with Enter, arrow-key navigation across the
   grid, pinned apps you can reorder by dragging, recommendations ranked by
   frequency and recency, and right-click menus. It opens from the bottom of the
   screen.
@@ -84,6 +85,7 @@ Dependencies shows which are missing.
 | `nmcli` (networkmanager) | VPN section of the network panel |
 | `wpctl` (wireplumber) | Bluetooth audio profile switching (A2DP or headset) |
 | `curl` | Downloads from the Wallhaven browser |
+| `qalc` (libqalculate) | Units, conversions and currencies in the launcher calculator |
 
 Wi-Fi (scan, connect with a password, forget, radio toggle), Bluetooth (scan,
 pair, connect, trust, forget, rename, battery) and battery alerts are handled
@@ -117,7 +119,7 @@ environment.systemPackages = [ inputs.scottbass3-shell.packages.${pkgs.stdenv.ho
 ```
 
 The package bundles `quickshell` and the lightweight optional tools (hyprpaper,
-matugen, imagemagick, cava, brightnessctl, curl, libsecret). The shell itself
+matugen, imagemagick, cava, brightnessctl, curl, libsecret, libqalculate). The shell itself
 is in the package's `share/scottbass3-shell`.
 
 **Git checkout**, with the install script (clones to `~/.config/quickshell` and

@@ -22,7 +22,8 @@ QtObject {
         "vdirsyncer":         { bin: "vdirsyncer",          pkg: "vdirsyncer",           desc: "Calendar sync (CalDAV)" },
         "nmcli":              { bin: "nmcli",               pkg: "networkmanager",       desc: "VPN connections (network panel)" },
         "wpctl":              { bin: "wpctl",               pkg: "wireplumber",          desc: "Bluetooth audio profile switching" },
-        "curl":               { bin: "curl",                pkg: "curl",                 desc: "Online wallpaper downloads" }
+        "curl":               { bin: "curl",                pkg: "curl",                 desc: "Online wallpaper downloads" },
+        "qalc":               { bin: "qalc",                pkg: "libqalculate",         desc: "Launcher calculator: units, conversions, currencies" }
     })
 
     property var present: ({})   // name → bool

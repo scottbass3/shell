@@ -21,6 +21,7 @@ optdepends=(
   'khal: calendar events'
   'vdirsyncer: calendar sync'
   'curl: online wallpaper downloads'
+  'libqalculate: units and conversions in the launcher calculator'
   'libsecret: YouTube Music companion token'
   'qt6-websockets: YouTube Music companion (realtime)'
 )

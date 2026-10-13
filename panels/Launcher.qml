@@ -52,7 +52,15 @@ Item {
     // ── Search ────────────────────────────────────────────────────────────────
     readonly property string _q: LauncherService.query.trim()
     readonly property bool   _searching: _q.length > 0
-    readonly property var    _results: _searching ? AppService.search(_q).slice(0, 40) : []
+    // A "=" query is a calculation only; plain arithmetic still lists apps below.
+    readonly property var    _results: (_searching && !_q.startsWith("=")) ? AppService.search(_q).slice(0, 40) : []
+
+    // Copy the calculator result and close, as Enter does with nothing selected.
+    function _copyResult() {
+        if (CalculatorService.result === "") return
+        CalculatorService.copy()
+        LauncherService.hide()
+    }
 
     function _launch(app) {
         if (!app) return
@@ -146,6 +154,7 @@ Item {
     }
 
     function _activateSel() {
+        if (_searching && _idx < 0 && CalculatorService.active) { _copyResult(); return }
         if (_searching) { _launch(_idx >= 0 ? (_results[_idx] ?? null) : (_results[0] ?? null)); return }
         const l = _list(_sec)
         if (_idx >= 0 && _idx < l.length) _launch(l[_idx])
@@ -230,7 +239,7 @@ Item {
                     color: ThemeManager.onSurface
                     font.family: ThemeManager.fontFamily
                     font.pixelSize: 15
-                    placeholderText: "Search apps…"
+                    placeholderText: "Search apps, or = to calculate…"
                     placeholderTextColor: ThemeManager.onSurfaceVariant
                     verticalAlignment: TextInput.AlignVCenter
                     text: LauncherService.query
@@ -266,8 +275,72 @@ Item {
                 width: parent.width
                 spacing: 14
 
+                // ── Calculator result ─────────────────────────────────────────
+                Rectangle {
+                    id: _calcCard
+                    visible: CalculatorService.active
+                    Layout.fillWidth: true
+                    implicitHeight: 64
+                    radius: ThemeManager.chipRadius + 4
+                    color: _calcHov.hovered && CalculatorService.result !== ""
+                        ? Qt.lighter(ThemeManager.surfaceContainerHigh, 1.15) : ThemeManager.surfaceContainerHigh
+                    border.width: root._idx < 0 ? 2 : 1
+                    border.color: root._idx < 0 ? ThemeManager.primary : ThemeManager.outlineVariant
+
+                    readonly property string _status: {
+                        if (CalculatorService.result !== "") return ""
+                        if (CalculatorService.busy) return "…"
+                        if (CalculatorService.needsQalc) return "Install libqalculate (qalc) for units and conversions"
+                        if (CalculatorService.hint !== "") return CalculatorService.hint
+                        return "Can't calculate this"
+                    }
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 18
+                        anchors.rightMargin: 18
+                        spacing: 14
+                        Text {
+                            text: "󰃬"
+                            color: ThemeManager.primary
+                            font.family: ThemeManager.fontFamily
+                            font.pixelSize: 22
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 2
+                            Text {
+                                Layout.fillWidth: true
+                                text: CalculatorService.expr
+                                color: ThemeManager.onSurfaceVariant
+                                font.family: ThemeManager.fontFamily
+                                font.pixelSize: ThemeManager.fontSizeSm
+                                elide: Text.ElideRight
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: CalculatorService.result !== "" ? "= " + CalculatorService.result : _calcCard._status
+                                color: CalculatorService.result !== "" ? ThemeManager.onSurface : ThemeManager.onSurfaceVariant
+                                font.family: ThemeManager.fontFamily
+                                font.pixelSize: CalculatorService.result !== "" ? 20 : ThemeManager.fontSizeSm
+                                font.weight: Font.Medium
+                                elide: Text.ElideRight
+                            }
+                        }
+                        Text {
+                            visible: CalculatorService.result !== ""
+                            text: "Enter to copy"
+                            color: ThemeManager.onSurfaceVariant
+                            font.family: ThemeManager.fontFamily
+                            font.pixelSize: ThemeManager.fontSizeXs
+                        }
+                    }
+                    HoverHandler { id: _calcHov; cursorShape: CalculatorService.result !== "" ? Qt.PointingHandCursor : Qt.ArrowCursor }
+                    TapHandler { onTapped: root._copyResult() }
+                }
+
                 AppGrid {
-                    visible: root._searching
+                    visible: root._results.length > 0
                     Layout.fillWidth: true
                     title: "Results"
                     apps: root._results
@@ -420,4 +493,5 @@ Item {
             }
         }
     }
+
 }

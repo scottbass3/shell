@@ -14,6 +14,7 @@
   brightnessctl,
   curl,
   libsecret,
+  libqalculate,
   coreutils,
   gnused,
   gawk,
@@ -65,6 +66,7 @@ stdenv.mkDerivation {
           brightnessctl
           curl
           libsecret
+          libqalculate
           coreutils
           gnused
           gawk

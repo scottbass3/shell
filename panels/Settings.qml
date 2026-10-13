@@ -33,7 +33,11 @@ PanelWindow {
     HyprlandFocusGrab { windows: [root]; active: root.active }
 
     property bool _exiting: false
-    onActiveChanged: { if (active) _exiting = false; else if (visible) { _exiting = true; _exitTimer.restart() } }
+    onActiveChanged: {
+        if (active) { _exiting = false; return }
+        _stopRecording()
+        if (visible) { _exiting = true; _exitTimer.restart() }
+    }
     Timer { id: _exitTimer; interval: 180; onTriggered: root._exiting = false }
 
     // ── Tray config helpers (defaults mirror Tray.qml) ────────────────────────
@@ -163,6 +167,86 @@ PanelWindow {
     }
     function _catLabel(id) { const c = _cats.find(x => x.id === id); return c ? c.label : id }
 
+    // ── Shortcut recording ─────────────────────────────────────────────────────
+    // Hyprland is switched to the empty "qs_capture" submap (hypr/quickshell.lua)
+    // while recording, so pressing an already-bound combo reaches us.
+    property string _recording: ""   // BindingService action key being recorded
+    function _startRecording(key) {
+        if (_recording === "") {
+            Hyprland.dispatch('hl.dsp.submap("qs_capture")')
+            _recordFailsafe.running = false
+            _recordFailsafe.running = true
+        }
+        _recording = key
+        _needModifier = false
+        _recordTimeout.restart()
+    }
+    function _stopRecording() {
+        if (_recording === "") return
+        _recording = ""
+        _recordTimeout.stop()
+        Hyprland.dispatch('hl.dsp.submap("reset")')
+    }
+    Timer { id: _recordTimeout; interval: 10000; onTriggered: root._stopRecording() }
+    // Live Hyprland binds, to flag a recorded shortcut that's already taken.
+    property var _hyprBinds: []
+    Process {
+        id: _bindsProbe
+        command: ["hyprctl", "binds", "-j"]
+        stdout: StdioCollector { onStreamFinished: { try { root._hyprBinds = JSON.parse(text) } catch (e) {} } }
+    }
+    function _refreshBinds() { _bindsProbe.running = false; _bindsProbe.running = true }
+    // BindingService reloads Hyprland after a change; re-read the binds once it has.
+    Timer { id: _bindsRefreshLater; interval: 800; onTriggered: root._refreshBinds() }
+    // True when `combo` is also bound elsewhere (user config or another action).
+    function _conflicts(combo) {
+        if (!combo) return false
+        const parts = combo.split("+").map(x => x.trim())
+        const key = parts.pop().toUpperCase()
+        if (key.startsWith("CODE:")) return false   // hyprctl doesn't report keycodes
+        let mask = 0
+        for (const m of parts) mask |= ({ SHIFT: 1, CTRL: 4, ALT: 8, SUPER: 64 })[m] ?? 0
+        const bound = _hyprBinds.filter(b => b.submap === "" && b.modmask === mask && ("" + b.key).toUpperCase() === key).length
+        const ours  = BindingService.actions.filter(a => SettingsService.get("binds." + a.key, "") === combo).length
+        return bound > ours
+    }
+
+    // Leaves the submap if the shell dies mid-recording (its parent, the shell, is gone).
+    Process {
+        id: _recordFailsafe
+        command: ["sh", "-c", "sleep 12; kill -0 $PPID 2>/dev/null || hyprctl dispatch 'hl.dsp.submap(\"reset\")'"]
+    }
+
+    readonly property var _keyNames: ({
+        [Qt.Key_Return]: "Return", [Qt.Key_Enter]: "Return", [Qt.Key_Tab]: "Tab",
+        [Qt.Key_Space]: "space", [Qt.Key_Backspace]: "BackSpace", [Qt.Key_Delete]: "Delete",
+        [Qt.Key_Insert]: "Insert", [Qt.Key_Home]: "Home", [Qt.Key_End]: "End",
+        [Qt.Key_PageUp]: "Page_Up", [Qt.Key_PageDown]: "Page_Down", [Qt.Key_Print]: "Print",
+        [Qt.Key_Up]: "Up", [Qt.Key_Down]: "Down", [Qt.Key_Left]: "Left", [Qt.Key_Right]: "Right"
+    })
+    readonly property var _modifierKeys: [Qt.Key_Shift, Qt.Key_Control, Qt.Key_Meta, Qt.Key_Alt,
+        Qt.Key_AltGr, Qt.Key_Super_L, Qt.Key_Super_R, Qt.Key_Hyper_L, Qt.Key_Hyper_R, Qt.Key_CapsLock]
+    // Hyprland combo for a key event, "" for a lone modifier, "?" for a bare key. Letters and F-keys
+    // keep their names; anything else (digits, punctuation) uses the physical
+    // keycode so the bind works whatever the layout (AZERTY digits are shifted).
+    function _comboFor(e) {
+        if (_modifierKeys.indexOf(e.key) >= 0) return ""
+        let key = ""
+        if (e.key >= Qt.Key_A && e.key <= Qt.Key_Z) key = String.fromCharCode(e.key)
+        else if (e.key >= Qt.Key_F1 && e.key <= Qt.Key_F24) key = "F" + (e.key - Qt.Key_F1 + 1)
+        else if (_keyNames[e.key] !== undefined) key = _keyNames[e.key]
+        else if (e.nativeScanCode > 0) key = "code:" + e.nativeScanCode
+        if (key === "") return ""
+        const mods = []
+        if (e.modifiers & Qt.MetaModifier)    mods.push("SUPER")
+        if (e.modifiers & Qt.ControlModifier) mods.push("CTRL")
+        if (e.modifiers & Qt.AltModifier)     mods.push("ALT")
+        if (e.modifiers & Qt.ShiftModifier)   mods.push("SHIFT")
+        // A global bind on a bare key would swallow that key everywhere.
+        if (mods.length === 0 && !/^F[0-9]+$/.test(key)) return "?"
+        return mods.concat([key]).join(" + ")
+    }
+    property bool _needModifier: false
 
     // Wallpaper pane: active sub-tab ("local" | "favorites" | "browse")
     property string _wpTab: "local"
@@ -524,12 +608,13 @@ PanelWindow {
                     // Keybindings ---------------------------------------------------
                     SettingPage {
                         cat: "keybindings"
+                        onVisibleChanged: if (visible) root._refreshBinds()
                         SettingGroup {
                             title: "Keybindings"
                             keywords: "shortcut keys bind launcher settings lock tools scratchpad"
                             Text {
                                 Layout.fillWidth: true; Layout.bottomMargin: 4
-                                text: "Shortcuts for the shell's actions. Unbound by default. Type a Hyprland combo, e.g. \"SUPER + R\" or \"SUPER + SHIFT + L\". Saving reloads Hyprland to apply. Requires hypr/quickshell.lua (Lua config)."
+                                text: "Shortcuts for the shell's actions, unbound by default. Click a shortcut, then press the keys (Escape cancels). Saving reloads Hyprland to apply. Requires hypr/quickshell.lua (Lua config)."
                                 wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
                                 font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
                             }
@@ -539,27 +624,62 @@ PanelWindow {
                                     required property var modelData
                                     Layout.fillWidth: true
                                     spacing: 10
-                                    Text {
+                                    ColumnLayout {
                                         Layout.fillWidth: true
-                                        text: modelData.label
-                                        color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                                        elide: Text.ElideRight
+                                        spacing: 0
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: modelData.label
+                                            color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                            elide: Text.ElideRight
+                                        }
+                                        Text {
+                                            visible: root._conflicts(_bindBtn.combo)
+                                            Layout.fillWidth: true
+                                            text: "Also bound elsewhere in Hyprland"
+                                            color: ThemeManager.error; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs
+                                        }
                                     }
-                                    TextField {
-                                        id: _bindField
-                                        Layout.preferredWidth: 180; implicitHeight: 28
-                                        text: SettingsService.get("binds." + modelData.key, "")
-                                        placeholderText: "Unbound"
-                                        color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                                        leftPadding: 8; rightPadding: 8
-                                        background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
-                                                                border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
-                                        onEditingFinished: if (text !== SettingsService.get("binds." + modelData.key, "")) BindingService.setCombo(modelData.key, text)
+                                    Rectangle {
+                                        id: _bindBtn
+                                        readonly property string combo: SettingsService.get("binds." + modelData.key, "")
+                                        readonly property bool recording: root._recording === modelData.key
+                                        Layout.preferredWidth: 200; implicitHeight: 30
+                                        radius: ThemeManager.chipRadius
+                                        color: recording ? Qt.rgba(ThemeManager.primary.r, ThemeManager.primary.g, ThemeManager.primary.b, 0.15)
+                                                         : (_bbH.hovered ? Qt.lighter(ThemeManager.surfaceContainerHigh, 1.2) : ThemeManager.surfaceContainerHigh)
+                                        border.width: 1
+                                        border.color: recording ? ThemeManager.primary : ThemeManager.outlineVariant
+                                        focus: recording
+                                        onRecordingChanged: if (recording) Qt.callLater(() => _bindBtn.forceActiveFocus())
+                                        Text {
+                                            anchors.centerIn: parent
+                                            width: parent.width - 16
+                                            horizontalAlignment: Text.AlignHCenter
+                                            elide: Text.ElideRight
+                                            text: _bindBtn.recording ? (root._needModifier ? "Add a modifier key" : "Press a shortcut…")
+                                                : (_bindBtn.combo !== "" ? _bindBtn.combo : "Click to set")
+                                            color: _bindBtn.recording ? ThemeManager.primary
+                                                 : (_bindBtn.combo !== "" ? ThemeManager.onSurface : ThemeManager.onSurfaceVariant)
+                                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                        }
+                                        HoverHandler { id: _bbH; cursorShape: Qt.PointingHandCursor }
+                                        TapHandler { onTapped: _bindBtn.recording ? root._stopRecording() : root._startRecording(modelData.key) }
+                                        Keys.onPressed: (e) => {
+                                            e.accepted = true
+                                            if (e.key === Qt.Key_Escape && e.modifiers === Qt.NoModifier) { root._stopRecording(); return }
+                                            const c = root._comboFor(e)
+                                            if (c === "") return
+                                            if (c === "?") { root._needModifier = true; return }
+                                            root._stopRecording()
+                                            BindingService.setCombo(modelData.key, c)
+                                            _bindsRefreshLater.restart()
+                                        }
                                     }
                                     SettingBtn {
                                         label: "Clear"; danger: true
-                                        enabled: SettingsService.get("binds." + modelData.key, "") !== ""
-                                        onClicked: { _bindField.text = ""; BindingService.setCombo(modelData.key, "") }
+                                        enabled: _bindBtn.combo !== ""
+                                        onClicked: { BindingService.setCombo(modelData.key, ""); _bindsRefreshLater.restart() }
                                     }
                                 }
                             }

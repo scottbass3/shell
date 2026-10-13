@@ -75,6 +75,11 @@ for i = 1, 10 do
     hl.bind(mainMod .. " + SHIFT + code:" .. code, hl.dsp.exec_cmd(ipc .. "ws go " .. i .. " move"))
 end
 
+-- Empty submap entered by Settings → Keybindings while recording a shortcut,
+-- so the combo reaches the shell instead of firing an existing bind. It must
+-- stay empty: any SUPER bind in it makes Hyprland swallow every SUPER + key.
+hl.define_submap("qs_capture", function() end)
+
 -- Apps parked in named special workspaces at launch are configured in-app under
 -- Settings → Tray → "Launch in special workspace" and emitted as window rules
 -- into hypr.generated.lua above. Keep such rules out of your own config, or the

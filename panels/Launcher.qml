@@ -55,6 +55,30 @@ Item {
     // A "=" query is a calculation only; plain arithmetic still lists apps below.
     readonly property var    _results: (_searching && !_q.startsWith("=")) ? AppService.search(_q).slice(0, 40) : []
 
+    // Calculator help: clicking an example puts it in the search field.
+    readonly property var _calcHelp: [
+        { ex: "2 ^ 10",     desc: "power" },
+        { ex: "17 % 5",     desc: "remainder" },
+        { ex: "sqrt(2)",    desc: "square root" },
+        { ex: "abs(-3)",    desc: "absolute value" },
+        { ex: "sin(pi/2)",  desc: "sin, cos, tan (radians)" },
+        { ex: "asin(1)",    desc: "asin, acos, atan" },
+        { ex: "ln(e)",      desc: "natural log" },
+        { ex: "log(1000)",  desc: "base-10 log" },
+        { ex: "exp(2)",     desc: "e to the power" },
+        { ex: "round(2.5)", desc: "round, floor, ceil" }
+    ]
+    readonly property var _calcHelpQalc: [
+        { ex: "5 km to miles",   desc: "units" },
+        { ex: "100 USD to EUR",  desc: "currencies (ISO codes)" },
+        { ex: "20 C to F",       desc: "temperatures (C, F, K)" }
+    ]
+    function _tryExample(ex) {
+        LauncherService.query = "= " + ex
+        _search.cursorPosition = _search.text.length
+        _search.forceActiveFocus()
+    }
+
     // Copy the calculator result and close, as Enter does with nothing selected.
     function _copyResult() {
         if (CalculatorService.result === "") return
@@ -339,6 +363,41 @@ Item {
                     TapHandler { onTapped: root._copyResult() }
                 }
 
+                // ── Calculator help ───────────────────────────────────────────
+                Rectangle {
+                    visible: CalculatorService.active
+                    Layout.fillWidth: true
+                    implicitHeight: _helpCol.implicitHeight + 24
+                    radius: ThemeManager.chipRadius + 4
+                    color: ThemeManager.surfaceContainer
+
+                    ColumnLayout {
+                        id: _helpCol
+                        anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
+                        spacing: 8
+
+                        GridLayout {
+                            Layout.fillWidth: true
+                            columns: 4
+                            columnSpacing: 10
+                            rowSpacing: 4
+                            Repeater {
+                                model: root._calcHelp.concat(CalculatorService.hasQalc ? root._calcHelpQalc : [])
+                                delegate: HelpItem { required property var modelData; ex: modelData.ex; desc: modelData.desc }
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            text: "Constants pi and e. \"1,5\" works like 1.5 and \"2x3\" like 2*3. Click an example to try it, Enter copies the result."
+                                + (CalculatorService.hasQalc ? "" : " Install libqalculate (qalc) for units, conversions and currencies.")
+                            color: ThemeManager.onSurfaceVariant
+                            font.family: ThemeManager.fontFamily
+                            font.pixelSize: ThemeManager.fontSizeXs
+                        }
+                    }
+                }
+
                 AppGrid {
                     visible: root._results.length > 0
                     Layout.fillWidth: true
@@ -494,4 +553,39 @@ Item {
         }
     }
 
+    // One calculator help entry: a clickable example and what it does.
+    component HelpItem: RowLayout {
+        id: hi
+        property string ex: ""
+        property string desc: ""
+        Layout.columnSpan: 2
+        Layout.fillWidth: true
+        Layout.preferredWidth: 1   // both columns share the width equally
+        spacing: 8
+        Rectangle {
+            implicitWidth: _hiText.implicitWidth + 12
+            implicitHeight: 22
+            radius: ThemeManager.chipRadius
+            color: _hiHov.hovered ? Qt.rgba(ThemeManager.primary.r, ThemeManager.primary.g, ThemeManager.primary.b, 0.22)
+                                  : Qt.rgba(ThemeManager.primary.r, ThemeManager.primary.g, ThemeManager.primary.b, 0.1)
+            Text {
+                id: _hiText
+                anchors.centerIn: parent
+                text: hi.ex
+                color: ThemeManager.primary
+                font.family: ThemeManager.fontFamily
+                font.pixelSize: ThemeManager.fontSizeSm
+            }
+            HoverHandler { id: _hiHov; cursorShape: Qt.PointingHandCursor }
+            TapHandler { onTapped: root._tryExample(hi.ex) }
+        }
+        Text {
+            Layout.fillWidth: true
+            text: hi.desc
+            color: ThemeManager.onSurfaceVariant
+            font.family: ThemeManager.fontFamily
+            font.pixelSize: ThemeManager.fontSizeSm
+            elide: Text.ElideRight
+        }
+    }
 }

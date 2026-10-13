@@ -325,9 +325,19 @@ PanelWindow {
                                 Repeater {
                                     model: ThemeManager.pickerThemes
                                     delegate: Rectangle {
+                                        id: _chip
                                         required property var modelData
                                         readonly property bool sel: ThemeManager.activeId === modelData.id
-                                        implicitWidth: _tn.implicitWidth + 28
+                                        // Colors for the preview swatch, read from the theme file (watched,
+                                        // so the wallpaper theme follows the wallpaper).
+                                        property var _roles: ({})
+                                        FileView {
+                                            path: ThemeManager._themeFilePath(_chip.modelData.id)
+                                            watchChanges: true
+                                            onFileChanged: reload()
+                                            onLoaded: { try { _chip._roles = JSON.parse(text()).roles ?? {} } catch (e) {} }
+                                        }
+                                        implicitWidth: _tn.implicitWidth + 58
                                         implicitHeight: 34
                                         radius: ThemeManager.chipRadius
                                         color: sel ? ThemeManager.secondaryContainer
@@ -337,8 +347,24 @@ PanelWindow {
                                         Row {
                                             anchors.centerIn: parent
                                             spacing: 7
-                                            Rectangle { width: 12; height: 12; radius: 6; anchors.verticalCenter: parent.verticalCenter
-                                                        color: modelData.dark ? "#222" : "#eee"; border.width: 1; border.color: ThemeManager.outlineVariant }
+                                            Rectangle {
+                                                width: 34; height: 20; radius: 5
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                color: _chip._roles.surface ?? (_chip.modelData.dark ? "#222" : "#eee")
+                                                border.width: 1; border.color: ThemeManager.outlineVariant
+                                                Row {
+                                                    anchors.centerIn: parent
+                                                    spacing: 3
+                                                    Repeater {
+                                                        model: ["primary", "secondary", "tertiary"]
+                                                        delegate: Rectangle {
+                                                            required property string modelData
+                                                            width: 7; height: 7; radius: 3.5
+                                                            color: _chip._roles[modelData] ?? "transparent"
+                                                        }
+                                                    }
+                                                }
+                                            }
                                             Text { id: _tn; text: modelData.name
                                                    color: sel ? ThemeManager.onSurface : ThemeManager.onSurfaceVariant
                                                    font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }

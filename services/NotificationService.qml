@@ -5,11 +5,13 @@ import Quickshell.Hyprland
 import Quickshell.Services.Notifications
 import "."
 
-// Notification daemon + history. Every notification gets a stable `key` and a
-// row in `history` (newest first); rows are inserted, updated and removed one at
-// a time, so views never rebuild their delegates on a change. The live
-// Notification object (needed for actions) is kept in `_live` until the app or
-// the user closes it; an app closing it leaves the row in the history.
+// Notification daemon + history. Notifications from the same app with the same
+// title are grouped into a stack; `history` holds one row per stack, newest
+// stack first, and a stack that receives a notification moves back to the top.
+// Rows are inserted, updated, moved and removed one at a time, so views never
+// rebuild their delegates on a change. Every notification keeps a stable `key`;
+// its live Notification object (needed for actions) stays in `_live` until the
+// app or the user closes it, and an app closing it leaves it in the history.
 QtObject {
     id: root
 
@@ -27,14 +29,17 @@ QtObject {
     readonly property int _toastMax:   SettingsService.get("notifications.toastMax", 5)
     readonly property int _maxHistory: SettingsService.get("notifications.maxHistory", 100)
 
-    // Rows: key, appName, summary, body, icon, image, desktopEntry, time,
-    // critical, transient, live, actions (JSON [{id, text}]). Toasts add `exp`
-    // (0 = stays until dismissed).
+    // Stack rows: stackId, size, items (JSON of the stack's notifications, newest
+    // first) and the latest notification's fields: key, appName, summary, body,
+    // icon, image, desktopEntry, time, critical, transient, live, actions (JSON
+    // [{id, text}]). Toast rows are the same plus `exp` (0 = stays until dismissed).
     property ListModel history: ListModel {}
     property ListModel toasts:  ListModel {}
-    readonly property int count: history.count
+    property int total: 0                // notifications across all stacks
 
-    property var  _live: ({})   // key -> Notification
+    property var  _items: ({})           // stackId -> [notification], newest first
+    property var  _keyStack: ({})        // key -> stackId
+    property var  _live: ({})            // key -> Notification
     property int  _nextKey: 1
     property bool _clearing: false
 
@@ -114,7 +119,7 @@ QtObject {
         _add({ appName: appName, summary: summary, body: body, appIcon: icon }, false, true)
     }
 
-    // ── Rows ─────────────────────────────────────────────────────────────────
+    // ── Notifications and stacks ─────────────────────────────────────────────
     function _iconSource(appIcon, desktopEntry, appName) {
         const s = "" + (appIcon ?? "")
         if (s.startsWith("/") || s.indexOf("://") > 0) return s
@@ -127,7 +132,7 @@ QtObject {
         return app ? Quickshell.iconPath(app.icon ?? "", true) : ""
     }
 
-    function _row(key, n, live) {
+    function _item(key, n, live) {
         const acts = []
         const src = n.actions ?? []
         for (let i = 0; i < src.length; i++)
@@ -148,17 +153,55 @@ QtObject {
         }
     }
 
-    function _indexIn(model, key) {
+    // Same app + same title. A messaging app usually puts the sender in the
+    // title, so each conversation gets its own stack.
+    function _stackId(item) { return item.appName + "\u001f" + item.summary }
+
+    function _indexOf(model, stackId) {
         for (let i = 0; i < model.count; i++)
-            if (model.get(i).key === key) return i
+            if (model.get(i).stackId === stackId) return i
         return -1
+    }
+
+    function _findItem(key) {
+        const sid = _keyStack[key]
+        const arr = sid !== undefined ? _items[sid] : null
+        if (!arr) return null
+        const i = arr.findIndex(x => x.key === key)
+        return i < 0 ? null : { sid: sid, arr: arr, i: i, item: arr[i] }
+    }
+
+    function _rowFor(sid) {
+        const arr = _items[sid]
+        return Object.assign({}, arr[0], { stackId: sid, size: arr.length, items: JSON.stringify(arr) })
+    }
+
+    // Rewrite a stack's row (and its toast) from `_items`; remove it once empty.
+    // `bump` moves it to the top, as for a newly received notification.
+    function _syncStack(sid, bump) {
+        const arr = _items[sid]
+        const h = _indexOf(history, sid)
+        const t = _indexOf(toasts, sid)
+        if (!arr || arr.length === 0) {
+            delete _items[sid]
+            if (h >= 0) history.remove(h)
+            if (t >= 0) toasts.remove(t)
+            return
+        }
+        const row = _rowFor(sid)
+        if (h < 0) history.insert(0, row)
+        else {
+            history.set(h, row)
+            if (bump && h > 0) history.move(h, 0, 1)
+        }
+        if (t >= 0) toasts.set(t, Object.assign({}, row, { exp: toasts.get(t).exp }))
     }
 
     function _add(n, live, toast) {
         if (live && Object.values(_live).indexOf(n) >= 0) return
         const key = _nextKey++
-        const row = _row(key, n, live)
-        if (row.appName === "" && row.summary === "" && row.body === "") {
+        const item = _item(key, n, live)
+        if (item.appName === "" && item.summary === "" && item.body === "") {
             if (live) n.dismiss()
             return
         }
@@ -166,7 +209,7 @@ QtObject {
         if (live) {
             _live[key] = n
             n.closed.connect(reason => root._onClosed(key, reason))
-            // Apps update a notification in place (replaces_id): refresh its row.
+            // Apps update a notification in place (replaces_id): refresh it.
             const refresh = () => root._refresh(key)
             n.summaryChanged.connect(refresh)
             n.bodyChanged.connect(refresh)
@@ -176,8 +219,13 @@ QtObject {
             n.urgencyChanged.connect(refresh)
         }
 
-        history.insert(0, row)
-        while (history.count > _maxHistory) dismiss(history.get(history.count - 1).key)
+        const sid = _stackId(item)
+        if (!_items[sid]) _items[sid] = []
+        _items[sid].unshift(item)
+        _keyStack[key] = sid
+        total++
+        _syncStack(sid, true)
+        _trim()
 
         if (!toast || doNotDisturb) return
 
@@ -187,9 +235,16 @@ QtObject {
         if (popoutOpen || fullCenterOpen) return
         unreadCount++
 
+        // One toast per stack: a new notification refreshes it and moves it up.
         const ttl = (live && n.expireTimeout > 0) ? Math.max(n.expireTimeout, 2000) : _toastTTL
-        const t = Object.assign({}, row, { exp: row.critical ? 0 : Date.now() + ttl })
-        toasts.insert(0, t)
+        const trow = Object.assign(_rowFor(sid), { exp: item.critical ? 0 : Date.now() + ttl })
+        const t = _indexOf(toasts, sid)
+        if (t >= 0) {
+            toasts.set(t, trow)
+            if (t > 0) toasts.move(t, 0, 1)
+        } else {
+            toasts.insert(0, trow)
+        }
         while (toasts.count > _toastMax) toasts.remove(toasts.count - 1)
         toastMode    = true
         centerScreen = null   // show on all screens
@@ -197,45 +252,74 @@ QtObject {
         _toastTimer.restart()
     }
 
+    // Drop the oldest notifications beyond the history size.
+    function _trim() {
+        while (total > _maxHistory) {
+            let oldest = null
+            for (const sid in _items) {
+                const arr = _items[sid]
+                const last = arr[arr.length - 1]
+                if (!oldest || last.time < oldest.time) oldest = last
+            }
+            if (!oldest) break
+            dismiss(oldest.key)
+        }
+    }
+
+    // An app updated a notification: it counts as new, so it moves to the top of
+    // its stack, or to another stack if its title changed.
     function _refresh(key) {
         const n = _live[key]
-        if (!n) return
-        const row = _row(key, n, true)
-        const h = _indexIn(history, key)
-        if (h >= 0) history.set(h, row)
-        const t = _indexIn(toasts, key)
-        if (t >= 0) toasts.set(t, Object.assign({}, row, { exp: toasts.get(t).exp }))
+        const f = _findItem(key)
+        if (!n || !f) return
+        const item = _item(key, n, true)
+        f.arr.splice(f.i, 1)
+        const sid = _stackId(item)
+        if (sid !== f.sid) {
+            _syncStack(f.sid, false)
+            if (!_items[sid]) _items[sid] = []
+            _keyStack[key] = sid
+        }
+        _items[sid].unshift(item)
+        _syncStack(sid, true)
     }
 
     // The app (or the user, via dismiss) closed the notification. User dismissals
-    // already removed the row; an app close keeps it, minus its actions.
+    // already removed it; an app close keeps it, minus its actions.
     function _onClosed(key, reason) {
         delete _live[key]
         if (_clearing) return
-        const h = _indexIn(history, key)
-        if (h < 0) return
-        if (history.get(h).transient) { _removeRow(key); return }
-        history.setProperty(h, "live", false)
-        if (reason === NotificationCloseReason.CloseRequested) {
-            const t = _indexIn(toasts, key)
+        const f = _findItem(key)
+        if (!f) return
+        if (f.item.transient) { _removeItem(key); return }
+        f.item.live = false
+        _syncStack(f.sid, false)
+        if (reason === NotificationCloseReason.CloseRequested && f.i === 0) {
+            const t = _indexOf(toasts, f.sid)
             if (t >= 0) toasts.remove(t)
         }
     }
 
-    function _removeRow(key) {
-        const h = _indexIn(history, key)
-        if (h >= 0) history.remove(h)
-        const t = _indexIn(toasts, key)
-        if (t >= 0) toasts.remove(t)
-        if (unreadCount > history.count) unreadCount = history.count
+    function _removeItem(key) {
+        const f = _findItem(key)
+        if (!f) return
+        f.arr.splice(f.i, 1)
+        delete _keyStack[key]
+        total--
+        _syncStack(f.sid, false)
+        if (unreadCount > total) unreadCount = total
     }
 
     // ── Actions ──────────────────────────────────────────────────────────────
     function dismiss(key) {
-        _removeRow(key)
+        _removeItem(key)
         const n = _live[key]
         delete _live[key]
         if (n) n.dismiss()
+    }
+
+    function dismissStack(stackId) {
+        for (const it of (_items[stackId] ?? []).slice()) dismiss(it.key)
     }
 
     function dismissAll() {
@@ -244,6 +328,9 @@ QtObject {
         _clearing = true
         const live = Object.values(_live)
         _live = {}
+        _items = {}
+        _keyStack = {}
+        total = 0
         history.clear()
         toasts.clear()
         unreadCount = 0
@@ -264,15 +351,12 @@ QtObject {
         unreadCount = 0
     }
 
-    // Click a notification → run its default action and bring its app forward:
+    // Run a notification's default action and bring its app forward:
     //  - window on a special (tray-parked) workspace → reveal that workspace
     //  - window elsewhere → focus it (switches to its workspace)
     //  - no window found → launch the app from its desktop entry
-    function activate(key) {
-        const h = _indexIn(history, key)
-        if (h < 0) return
-        const row = history.get(h)
-        const n = _live[key]
+    function _bringForward(item) {
+        const n = _live[item.key]
 
         // Messaging apps register "default" to jump to the conversation; the
         // window reveal below still runs for tray-parked apps it can't surface.
@@ -283,8 +367,8 @@ QtObject {
         }
 
         const cands = []
-        if (row.desktopEntry) cands.push(row.desktopEntry.toLowerCase())
-        if (row.appName)      cands.push(row.appName.toLowerCase())
+        if (item.desktopEntry) cands.push(item.desktopEntry.toLowerCase())
+        if (item.appName)      cands.push(item.appName.toLowerCase())
 
         const tops = Hyprland.toplevels?.values ?? []
         let match = null
@@ -317,12 +401,32 @@ QtObject {
             if (addr) Hyprland.dispatch('hl.dsp.focus({window = "address:' + addr + '"})')
         } else {
             let app = null
-            if (row.desktopEntry) app = AppService.byKey(row.desktopEntry) || AppService.byClass(row.desktopEntry)
-            if (!app && row.appName) app = AppService.byClass(row.appName)
+            if (item.desktopEntry) app = AppService.byKey(item.desktopEntry) || AppService.byClass(item.desktopEntry)
+            if (!app && item.appName) app = AppService.byClass(item.appName)
             if (app) AppService.launch(app)
         }
+    }
 
+    function _dismissUnlessResident(key) {
+        const n = _live[key]
         if (!n || !n.resident) dismiss(key)
+    }
+
+    // Click one notification (inside an expanded stack).
+    function activate(key) {
+        const f = _findItem(key)
+        if (!f) return
+        _bringForward(f.item)
+        _dismissUnlessResident(key)
+        closeCenter()
+    }
+
+    // Click a stack: open its latest notification; the whole stack is handled.
+    function activateStack(stackId) {
+        const arr = _items[stackId]
+        if (!arr || arr.length === 0) return
+        _bringForward(arr[0])
+        for (const it of arr.slice()) _dismissUnlessResident(it.key)
         closeCenter()
     }
 

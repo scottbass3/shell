@@ -148,6 +148,22 @@ PanelWindow {
         { id: "advanced",     label: "Advanced",     icon: "󰒓" }
     ]
 
+    // ── Search ─────────────────────────────────────────────────────────────────
+    // While a query is typed, every page is shown at once and filtered: a group
+    // matches on its title/keywords (then shows all its rows) or on any row's
+    // label/description (then shows those rows only).
+    readonly property string _q: SettingsUi.query.trim().toLowerCase()
+    function _matches(text) { return _q !== "" && ("" + text).toLowerCase().indexOf(_q) >= 0 }
+    function _hasMatch(item) {
+        for (const c of item.children) {
+            if (c.isGroup) { if (c.matches) return true }
+            else if (_hasMatch(c)) return true
+        }
+        return false
+    }
+    function _catLabel(id) { const c = _cats.find(x => x.id === id); return c ? c.label : id }
+
+
     // Wallpaper pane: active sub-tab ("local" | "favorites" | "browse")
     property string _wpTab: "local"
 
@@ -181,7 +197,14 @@ PanelWindow {
         Behavior on scale   { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
         focus: root.active
-        Keys.onEscapePressed: SettingsUi.hide()
+        Keys.onEscapePressed: { if (SettingsUi.query !== "") SettingsUi.query = ""; else SettingsUi.hide() }
+        Keys.onPressed: (e) => {
+            if (e.text.length === 1 && e.text >= " " && !(e.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))) {
+                _search.forceActiveFocus()
+                _search.insert(_search.length, e.text)
+                e.accepted = true
+            }
+        }
 
         // Swallow clicks on the card background (sidebar gaps, header) so they
         // don't reach the dismiss scrim underneath.
@@ -214,6 +237,23 @@ PanelWindow {
                         Layout.leftMargin: 6
                     }
 
+                    TextField {
+                        id: _search
+                        Layout.fillWidth: true
+                        Layout.bottomMargin: 6
+                        implicitHeight: 32
+                        text: SettingsUi.query
+                        placeholderText: "󰍉  Search"
+                        placeholderTextColor: ThemeManager.onSurfaceVariant
+                        color: ThemeManager.onSurface
+                        font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                        leftPadding: 10; rightPadding: 10
+                        background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
+                                                border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
+                        onTextChanged: { if (text !== SettingsUi.query) SettingsUi.query = text; _contentFlick.contentY = 0 }
+                        Keys.onEscapePressed: { if (text !== "") SettingsUi.query = ""; else SettingsUi.hide() }
+                    }
+
                     Repeater {
                         model: root._cats
                         delegate: Rectangle {
@@ -221,7 +261,7 @@ PanelWindow {
                             Layout.fillWidth: true
                             implicitHeight: 36
                             radius: ThemeManager.chipRadius
-                            readonly property bool sel: SettingsUi.category === modelData.id
+                            readonly property bool sel: root._q === "" && SettingsUi.category === modelData.id
                             color: sel ? ThemeManager.secondaryContainer
                                        : (_h.hovered ? ThemeManager.surfaceContainerHigh : "transparent")
                             RowLayout {
@@ -235,7 +275,7 @@ PanelWindow {
                                        font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeMd }
                             }
                             HoverHandler { id: _h }
-                            TapHandler { onTapped: SettingsUi.category = modelData.id }
+                            TapHandler { onTapped: { SettingsUi.query = ""; SettingsUi.category = modelData.id } }
                         }
                     }
                     Item { Layout.fillHeight: true }
@@ -244,6 +284,7 @@ PanelWindow {
 
             // ── Content pane ──────────────────────────────────────────────────
             Flickable {
+                id: _contentFlick
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true
@@ -257,314 +298,291 @@ PanelWindow {
                     Component.onCompleted: {}
 
                     // Appearance ----------------------------------------------------
-                    ColumnLayout {
-                        visible: SettingsUi.category === "appearance"
-                        Layout.fillWidth: true
-                        Layout.margins: 20
-                        spacing: 8
-                        SettingSection { text: "Appearance" }
-                        SettingSeg {
-                            label: "Overall style"
-                            sub: "Frame border · top bar only · floating bar"
-                            options: ["Frame", "Top bar", "Islands"]
-                            keys: ["frame", "topbar", "islands"]
-                            path: "appearance.mode"; def: "frame"
+                    SettingPage {
+                        cat: "appearance"
+                        SettingGroup {
+                            title: "Appearance"
+                            keywords: "style frame islands top bar height radius font size blur"
+                            SettingSeg {
+                                label: "Overall style"
+                                sub: "Frame border · top bar only · floating bar"
+                                options: ["Frame", "Top bar", "Islands"]
+                                keys: ["frame", "topbar", "islands"]
+                                path: "appearance.mode"; def: "frame"
+                            }
+                            SettingSlider { label: "Bar height"; path: "bar.height"; def: 40; from: 28; to: 56; unit: "px" }
+                            SettingSlider { label: "Panel radius"; path: "appearance.panelRadius"; def: 16; from: 0; to: 28; unit: "px" }
+                            SettingSlider { label: "Base font size"; path: "appearance.fontSize"; def: 13; from: 10; to: 18; unit: "pt" }
+                            SettingToggle { label: "Panel blur"; sub: "Background blur behind panels"; path: "appearance.blur"; def: true }
                         }
-                        SettingSlider { label: "Bar height"; path: "bar.height"; def: 40; from: 28; to: 56; unit: "px" }
-                        SettingSlider { label: "Panel radius"; path: "appearance.panelRadius"; def: 16; from: 0; to: 28; unit: "px" }
-                        SettingSlider { label: "Base font size"; path: "appearance.fontSize"; def: 13; from: 10; to: 18; unit: "pt" }
-                        SettingToggle { label: "Panel blur"; sub: "Background blur behind panels"; path: "appearance.blur"; def: true }
 
-                        SettingSection { text: "Theme" }
-                        Flow {
-                            Layout.fillWidth: true
-                            spacing: 8
-                            Repeater {
-                                model: ThemeManager.pickerThemes
-                                delegate: Rectangle {
-                                    required property var modelData
-                                    readonly property bool sel: ThemeManager.activeId === modelData.id
-                                    implicitWidth: _tn.implicitWidth + 28
-                                    implicitHeight: 34
-                                    radius: ThemeManager.chipRadius
-                                    color: sel ? ThemeManager.secondaryContainer
-                                               : (_th.hovered ? ThemeManager.surfaceContainerHigh : ThemeManager.surfaceContainerLow)
-                                    border.width: sel ? 2 : 1
-                                    border.color: sel ? ThemeManager.primary : ThemeManager.outlineVariant
-                                    Row {
-                                        anchors.centerIn: parent
-                                        spacing: 7
-                                        Rectangle { width: 12; height: 12; radius: 6; anchors.verticalCenter: parent.verticalCenter
-                                                    color: modelData.dark ? "#222" : "#eee"; border.width: 1; border.color: ThemeManager.outlineVariant }
-                                        Text { id: _tn; text: modelData.name
-                                               color: sel ? ThemeManager.onSurface : ThemeManager.onSurfaceVariant
-                                               font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
+                        SettingGroup {
+                            title: "Theme"
+                            keywords: "colors palette dark light catppuccin nord tokyo"
+                            Flow {
+                                Layout.fillWidth: true
+                                spacing: 8
+                                Repeater {
+                                    model: ThemeManager.pickerThemes
+                                    delegate: Rectangle {
+                                        required property var modelData
+                                        readonly property bool sel: ThemeManager.activeId === modelData.id
+                                        implicitWidth: _tn.implicitWidth + 28
+                                        implicitHeight: 34
+                                        radius: ThemeManager.chipRadius
+                                        color: sel ? ThemeManager.secondaryContainer
+                                                   : (_th.hovered ? ThemeManager.surfaceContainerHigh : ThemeManager.surfaceContainerLow)
+                                        border.width: sel ? 2 : 1
+                                        border.color: sel ? ThemeManager.primary : ThemeManager.outlineVariant
+                                        Row {
+                                            anchors.centerIn: parent
+                                            spacing: 7
+                                            Rectangle { width: 12; height: 12; radius: 6; anchors.verticalCenter: parent.verticalCenter
+                                                        color: modelData.dark ? "#222" : "#eee"; border.width: 1; border.color: ThemeManager.outlineVariant }
+                                            Text { id: _tn; text: modelData.name
+                                                   color: sel ? ThemeManager.onSurface : ThemeManager.onSurfaceVariant
+                                                   font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
+                                        }
+                                        HoverHandler { id: _th }
+                                        TapHandler { onTapped: ThemeManager.setTheme(modelData.id) }
                                     }
-                                    HoverHandler { id: _th }
-                                    TapHandler { onTapped: ThemeManager.setTheme(modelData.id) }
                                 }
                             }
-                        }
-                        // Theme actions
-                        Row {
-                            Layout.topMargin: 4
-                            spacing: 8
-                            SettingBtn { label: "New";       onClicked: { root._themeAction = "new";       _nameInput.text = ""; _nameInput.forceActiveFocus() } }
-                            SettingBtn { label: "Duplicate"; onClicked: { root._themeAction = "duplicate"; _nameInput.text = ThemeManager.name + " copy"; _nameInput.forceActiveFocus() } }
-                            SettingBtn { enabled: ThemeManager._isUser(ThemeManager.activeId); label: "Rename"; onClicked: { root._themeAction = "rename"; _nameInput.text = ThemeManager.name; _nameInput.forceActiveFocus() } }
-                            SettingBtn { enabled: ThemeManager._isUser(ThemeManager.activeId); label: "Delete"; danger: true; onClicked: ThemeManager.deleteTheme(ThemeManager.activeId) }
-                        }
-                        // Name entry — only while a New/Duplicate/Rename is pending
-                        RowLayout {
-                            visible: root._themeAction !== ""
-                            Layout.fillWidth: true; Layout.topMargin: 4
-                            spacing: 8
-                            TextField {
-                                id: _nameInput
-                                Layout.fillWidth: true; implicitHeight: 30
-                                placeholderText: "Theme name"
-                                color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                                leftPadding: 10; rightPadding: 10
-                                background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
-                                                        border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
-                                onAccepted: root._confirmTheme(text)
-                                Keys.onEscapePressed: root._themeAction = ""
+                            // Theme actions
+                            Row {
+                                Layout.topMargin: 4
+                                spacing: 8
+                                SettingBtn { label: "New";       onClicked: { root._themeAction = "new";       _nameInput.text = ""; _nameInput.forceActiveFocus() } }
+                                SettingBtn { label: "Duplicate"; onClicked: { root._themeAction = "duplicate"; _nameInput.text = ThemeManager.name + " copy"; _nameInput.forceActiveFocus() } }
+                                SettingBtn { enabled: ThemeManager._isUser(ThemeManager.activeId); label: "Rename"; onClicked: { root._themeAction = "rename"; _nameInput.text = ThemeManager.name; _nameInput.forceActiveFocus() } }
+                                SettingBtn { enabled: ThemeManager._isUser(ThemeManager.activeId); label: "Delete"; danger: true; onClicked: ThemeManager.deleteTheme(ThemeManager.activeId) }
                             }
-                            SettingBtn {
-                                label: root._themeAction === "rename" ? "Rename"
-                                     : root._themeAction === "duplicate" ? "Duplicate" : "Create"
-                                onClicked: root._confirmTheme(_nameInput.text)
+                            // Name entry, only while a New/Duplicate/Rename is pending
+                            RowLayout {
+                                visible: root._themeAction !== ""
+                                Layout.fillWidth: true; Layout.topMargin: 4
+                                spacing: 8
+                                TextField {
+                                    id: _nameInput
+                                    Layout.fillWidth: true; implicitHeight: 30
+                                    placeholderText: "Theme name"
+                                    color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                    leftPadding: 10; rightPadding: 10
+                                    background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
+                                                            border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
+                                    onAccepted: root._confirmTheme(text)
+                                    Keys.onEscapePressed: root._themeAction = ""
+                                }
+                                SettingBtn {
+                                    label: root._themeAction === "rename" ? "Rename"
+                                         : root._themeAction === "duplicate" ? "Duplicate" : "Create"
+                                    onClicked: root._confirmTheme(_nameInput.text)
+                                }
+                                SettingBtn { label: "Cancel"; onClicked: root._themeAction = "" }
                             }
-                            SettingBtn { label: "Cancel"; onClicked: root._themeAction = "" }
                         }
 
                         // ── Theme designer (colors) ────────────────────────────
-                        SettingSection { text: "Designer" }
-                        Text {
-                            visible: !ThemeManager._isUser(ThemeManager.activeId)
-                            Layout.fillWidth: true
-                            text: "Built-in themes are read-only. Duplicate one to edit its colors."
-                            wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
-                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs
-                        }
-                        ColumnLayout {
-                            visible: ThemeManager._isUser(ThemeManager.activeId)
-                            Layout.fillWidth: true; Layout.topMargin: 4
-                            spacing: 4
-                            Repeater {
-                                model: ThemeManager.editableRoles
-                                delegate: SettingColor { required property var modelData; role: modelData }
+                        SettingGroup {
+                            title: "Designer"
+                            keywords: "theme colors import export json"
+                            Text {
+                                visible: !ThemeManager._isUser(ThemeManager.activeId)
+                                Layout.fillWidth: true
+                                text: "Built-in themes are read-only. Duplicate one to edit its colors."
+                                wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
+                                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs
                             }
-                        }
-                        SettingText {
-                            Layout.topMargin: 6
-                            label: "Import theme"; sub: "Path to a .json theme, added as a new theme"
-                            path: "_importPath"; def: ""; placeholder: "/path/theme.json"
-                            SettingBtn { label: "Import"; onClicked: ThemeManager.importTheme(SettingsService.get("_importPath", ""), "imported") }
-                        }
-                        Row {
-                            Layout.topMargin: 6
-                            spacing: 10
-                            SettingBtn { label: "Export current theme"; onClicked: _exportTheme.running = true }
-                        }
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Exports the active theme's colors to ~/.local/state/scottbass3-shell/exports/"
-                            wrapMode: Text.WordWrap
-                            color: ThemeManager.onSurfaceVariant
-                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs
-                        }
-                        Process {
-                            id: _exportTheme
-                            command: ["sh", "-c",
-                                "d=\"" + (Paths.stateDir + "/exports") + "\"; " +
-                                "mkdir -p \"$d\" && printf '%s' '" +
-                                JSON.stringify(ThemeManager.themeData).replace(/'/g, "'\\''") +
-                                "' > \"$d/" + ThemeManager.activeId + ".json\""]
+                            ColumnLayout {
+                                visible: ThemeManager._isUser(ThemeManager.activeId)
+                                Layout.fillWidth: true; Layout.topMargin: 4
+                                spacing: 4
+                                Repeater {
+                                    model: ThemeManager.editableRoles
+                                    delegate: SettingColor { required property var modelData; role: modelData }
+                                }
+                            }
+                            SettingText {
+                                Layout.topMargin: 6
+                                label: "Import theme"; sub: "Path to a .json theme, added as a new theme"
+                                path: "_importPath"; def: ""; placeholder: "/path/theme.json"
+                                SettingBtn { label: "Import"; onClicked: ThemeManager.importTheme(SettingsService.get("_importPath", ""), "imported") }
+                            }
+                            Row {
+                                Layout.topMargin: 6
+                                spacing: 10
+                                SettingBtn { label: "Export current theme"; onClicked: _exportTheme.running = true }
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: "Exports the active theme's colors to ~/.local/state/scottbass3-shell/exports/"
+                                wrapMode: Text.WordWrap
+                                color: ThemeManager.onSurfaceVariant
+                                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs
+                            }
+                            Process {
+                                id: _exportTheme
+                                command: ["sh", "-c",
+                                    "d=\"" + (Paths.stateDir + "/exports") + "\"; " +
+                                    "mkdir -p \"$d\" && printf '%s' '" +
+                                    JSON.stringify(ThemeManager.themeData).replace(/'/g, "'\\''") +
+                                    "' > \"$d/" + ThemeManager.activeId + ".json\""]
+                            }
                         }
                     }
 
                     // Bar -----------------------------------------------------------
-                    ColumnLayout {
-                        visible: SettingsUi.category === "bar"
-                        Layout.fillWidth: true
-                        Layout.margins: 20
-                        spacing: 8
-                        SettingSection { text: "Clock" }
-                        SettingToggle { label: "24-hour clock"; path: "bar.clock.use24h"; def: true }
-                        SettingToggle { label: "Show seconds"; path: "bar.clock.seconds"; def: false }
-                        SettingSection { text: "Widgets" }
-                        SettingToggle { label: "Launcher button"; path: "bar.widgets.launcher"; def: true }
-                        SettingToggle { label: "Active window title"; path: "bar.widgets.windowTitle"; def: true }
-                        SettingToggle { label: "Media mini indicator"; path: "bar.widgets.media"; def: false }
-                        SettingToggle { label: "Status row (battery/wifi/bt/vol)"; path: "bar.widgets.status"; def: true }
-                        SettingSection { text: "Workspaces" }
-                        SettingToggle { label: "Show numbers"; sub: "Off = dots"; path: "bar.workspaces.numbers"; def: false }
-                        SettingToggle { label: "Hide special workspaces"; path: "bar.workspaces.hideSpecial"; def: true }
-                        SettingToggle { label: "Unified workspaces"; sub: "Shared across screens (off = per-monitor)"; path: "workspaces.unified"; def: false }
+                    SettingPage {
+                        cat: "bar"
+                        SettingGroup {
+                            title: "Clock"
+                            keywords: "time 24h seconds"
+                            SettingToggle { label: "24-hour clock"; path: "bar.clock.use24h"; def: true }
+                            SettingToggle { label: "Show seconds"; path: "bar.clock.seconds"; def: false }
+                        }
+                        SettingGroup {
+                            title: "Widgets"
+                            keywords: "bar launcher window title media status battery wifi"
+                            SettingToggle { label: "Launcher button"; path: "bar.widgets.launcher"; def: true }
+                            SettingToggle { label: "Active window title"; path: "bar.widgets.windowTitle"; def: true }
+                            SettingToggle { label: "Media mini indicator"; path: "bar.widgets.media"; def: false }
+                            SettingToggle { label: "Status row (battery/wifi/bt/vol)"; path: "bar.widgets.status"; def: true }
+                        }
+                        SettingGroup {
+                            title: "Workspaces"
+                            keywords: "numbers dots special unified monitor"
+                            SettingToggle { label: "Show numbers"; sub: "Off = dots"; path: "bar.workspaces.numbers"; def: false }
+                            SettingToggle { label: "Hide special workspaces"; path: "bar.workspaces.hideSpecial"; def: true }
+                            SettingToggle { label: "Unified workspaces"; sub: "Shared across screens (off = per-monitor)"; path: "workspaces.unified"; def: false }
+                        }
                     }
 
                     // Media ---------------------------------------------------------
-                    ColumnLayout {
-                        visible: SettingsUi.category === "media"
-                        Layout.fillWidth: true
-                        Layout.margins: 20
-                        spacing: 8
-                        SettingSection { text: "Media player" }
-                        SettingToggle { label: "Audio visualizer"; dep: "cava"; path: "media.visualizer"; def: true }
-                        SettingToggle { label: "Bongo cat"; path: "media.bongo"; def: true }
-                        SettingToggle { label: "YouTube Music companion"; sub: "Realtime integration (ytmdesktop companion server)"; path: "media.ytm"; def: true }
+                    SettingPage {
+                        cat: "media"
+                        SettingGroup {
+                            title: "Media player"
+                            keywords: "music cava visualizer bongo youtube ytm"
+                            SettingToggle { label: "Audio visualizer"; dep: "cava"; path: "media.visualizer"; def: true }
+                            SettingToggle { label: "Bongo cat"; path: "media.bongo"; def: true }
+                            SettingToggle { label: "YouTube Music companion"; sub: "Realtime integration (ytmdesktop companion server)"; path: "media.ytm"; def: true }
+                        }
                     }
 
                     // Notifications -------------------------------------------------
-                    ColumnLayout {
-                        visible: SettingsUi.category === "notifications"
-                        Layout.fillWidth: true
-                        Layout.margins: 20
-                        spacing: 8
-                        SettingSection { text: "Notifications" }
-                        SettingToggle { label: "Click notification opens app"; path: "notifications.clickOpensApp"; def: true }
-                        SettingToggle { label: "Start in Do Not Disturb"; path: "notifications.dndDefault"; def: false }
-                        SettingSlider { label: "Toast timeout"; path: "notifications.toastMs"; def: 5000; from: 2000; to: 15000; step: 500; displayScale: 0.001; decimals: 1; unit: "s" }
-                        SettingSlider { label: "Max toast stack"; path: "notifications.toastMax"; def: 5; from: 1; to: 10; unit: "" }
-                        SettingSlider { label: "History size"; sub: "Oldest notifications are dropped beyond this"; path: "notifications.maxHistory"; def: 100; from: 20; to: 500; unit: "" }
+                    SettingPage {
+                        cat: "notifications"
+                        SettingGroup {
+                            title: "Notifications"
+                            keywords: "toast popup dnd do not disturb history"
+                            SettingToggle { label: "Click notification opens app"; path: "notifications.clickOpensApp"; def: true }
+                            SettingToggle { label: "Start in Do Not Disturb"; path: "notifications.dndDefault"; def: false }
+                            SettingSlider { label: "Toast timeout"; path: "notifications.toastMs"; def: 5000; from: 2000; to: 15000; step: 500; displayScale: 0.001; decimals: 1; unit: "s" }
+                            SettingSlider { label: "Max toast stack"; path: "notifications.toastMax"; def: 5; from: 1; to: 10; unit: "" }
+                            SettingSlider { label: "History size"; sub: "Oldest notifications are dropped beyond this"; path: "notifications.maxHistory"; def: 100; from: 20; to: 500; unit: "" }
+                        }
                     }
 
                     // Weather -------------------------------------------------------
-                    ColumnLayout {
-                        visible: SettingsUi.category === "weather"
-                        Layout.fillWidth: true
-                        Layout.margins: 20
-                        spacing: 8
-                        SettingSection { text: "Weather" }
-                        SettingText { label: "Location"; sub: "City or lat,lon. Leave empty to detect it from your IP"; path: "weather.location"; def: "Dijon"; placeholder: "auto" }
-                        SettingToggle { label: "Fahrenheit"; sub: "Off = Celsius"; path: "weather.fahrenheit"; def: false }
-                        SettingSlider { label: "Refresh interval"; path: "weather.refreshMin"; def: 30; from: 5; to: 120; unit: "min" }
+                    SettingPage {
+                        cat: "weather"
+                        SettingGroup {
+                            title: "Weather"
+                            keywords: "location city fahrenheit celsius refresh"
+                            SettingText { label: "Location"; sub: "City or lat,lon. Leave empty to detect it from your IP"; path: "weather.location"; def: "Dijon"; placeholder: "auto" }
+                            SettingToggle { label: "Fahrenheit"; sub: "Off = Celsius"; path: "weather.fahrenheit"; def: false }
+                            SettingSlider { label: "Refresh interval"; path: "weather.refreshMin"; def: 30; from: 5; to: 120; unit: "min" }
+                        }
                     }
 
                     // Keybindings ---------------------------------------------------
-                    ColumnLayout {
-                        visible: SettingsUi.category === "keybindings"
-                        Layout.fillWidth: true
-                        Layout.margins: 20
-                        spacing: 8
-                        SettingSection { text: "Keybindings" }
-                        Text {
-                            Layout.fillWidth: true; Layout.bottomMargin: 4
-                            text: "Shortcuts for the shell's actions. Unbound by default. Type a Hyprland combo, e.g. \"SUPER + R\" or \"SUPER + SHIFT + L\". Saving reloads Hyprland to apply. Requires hypr/quickshell.lua (Lua config)."
-                            wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
-                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                        }
-                        Repeater {
-                            model: BindingService.actions
-                            delegate: RowLayout {
-                                required property var modelData
-                                Layout.fillWidth: true
-                                spacing: 10
-                                Text {
+                    SettingPage {
+                        cat: "keybindings"
+                        SettingGroup {
+                            title: "Keybindings"
+                            keywords: "shortcut keys bind launcher settings lock tools scratchpad"
+                            Text {
+                                Layout.fillWidth: true; Layout.bottomMargin: 4
+                                text: "Shortcuts for the shell's actions. Unbound by default. Type a Hyprland combo, e.g. \"SUPER + R\" or \"SUPER + SHIFT + L\". Saving reloads Hyprland to apply. Requires hypr/quickshell.lua (Lua config)."
+                                wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
+                                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                            }
+                            Repeater {
+                                model: BindingService.actions
+                                delegate: RowLayout {
+                                    required property var modelData
                                     Layout.fillWidth: true
-                                    text: modelData.label
-                                    color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                                    elide: Text.ElideRight
-                                }
-                                TextField {
-                                    id: _bindField
-                                    Layout.preferredWidth: 180; implicitHeight: 28
-                                    text: SettingsService.get("binds." + modelData.key, "")
-                                    placeholderText: "Unbound"
-                                    color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                                    leftPadding: 8; rightPadding: 8
-                                    background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
-                                                            border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
-                                    onEditingFinished: if (text !== SettingsService.get("binds." + modelData.key, "")) BindingService.setCombo(modelData.key, text)
-                                }
-                                SettingBtn {
-                                    label: "Clear"; danger: true
-                                    enabled: SettingsService.get("binds." + modelData.key, "") !== ""
-                                    onClicked: { _bindField.text = ""; BindingService.setCombo(modelData.key, "") }
+                                    spacing: 10
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: modelData.label
+                                        color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                        elide: Text.ElideRight
+                                    }
+                                    TextField {
+                                        id: _bindField
+                                        Layout.preferredWidth: 180; implicitHeight: 28
+                                        text: SettingsService.get("binds." + modelData.key, "")
+                                        placeholderText: "Unbound"
+                                        color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                        leftPadding: 8; rightPadding: 8
+                                        background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
+                                                                border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
+                                        onEditingFinished: if (text !== SettingsService.get("binds." + modelData.key, "")) BindingService.setCombo(modelData.key, text)
+                                    }
+                                    SettingBtn {
+                                        label: "Clear"; danger: true
+                                        enabled: SettingsService.get("binds." + modelData.key, "") !== ""
+                                        onClicked: { _bindField.text = ""; BindingService.setCombo(modelData.key, "") }
+                                    }
                                 }
                             }
                         }
                     }
 
                     // Tray ----------------------------------------------------------
-                    ColumnLayout {
-                        visible: SettingsUi.category === "tray"
+                    SettingPage {
+                        cat: "tray"
                         onVisibleChanged: if (visible) HyprlandConfigService.refreshClients()
-                        Layout.fillWidth: true
-                        Layout.margins: 20
-                        spacing: 8
 
                         // Custom entries (non-SNI apps) -----------------------------
-                        SettingSection { text: "Custom entries" }
-                        Text {
-                            Layout.fillWidth: true; Layout.bottomMargin: 2
-                            text: "Pin any app to the tray, even ones without tray support. Each entry is one clickable icon."
-                            wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
-                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                        }
+                        SettingGroup {
+                            title: "Custom entries"
+                            keywords: "tray pin app command icon"
+                            Text {
+                                Layout.fillWidth: true; Layout.bottomMargin: 2
+                                text: "Pin any app to the tray, even ones without tray support. Each entry is one clickable icon."
+                                wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
+                                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                            }
 
-                        Repeater {
-                            model: root._trayCustomList
-                            delegate: Rectangle {
-                                id: _ce
-                                required property var modelData
-                                required property int index
-                                readonly property bool _ws: (modelData.action ?? "run") === "ws"
-                                readonly property bool editing: root._trayEditIdx === index
+                            Repeater {
+                                model: root._trayCustomList
+                                delegate: Rectangle {
+                                    id: _ce
+                                    required property var modelData
+                                    required property int index
+                                    readonly property bool _ws: (modelData.action ?? "run") === "ws"
+                                    readonly property bool editing: root._trayEditIdx === index
 
-                                function _iconSrc() {
-                                    const ic = String(_ce.modelData.icon ?? "")
-                                    if (ic === "") return ""
-                                    return (ic.startsWith("/") || ic.indexOf("://") >= 0) ? ic : Quickshell.iconPath(ic, true)
-                                }
-
-                                Layout.fillWidth: true
-                                Layout.topMargin: 6
-                                radius: ThemeManager.panelRadius
-                                color: ThemeManager.surfaceContainerHigh
-                                border.width: 1; border.color: editing ? ThemeManager.primary : ThemeManager.outlineVariant
-                                implicitHeight: (editing ? _ceCol.implicitHeight : _ceRow.implicitHeight) + 24
-
-                                // ── Collapsed summary ──────────────────────────────
-                                RowLayout {
-                                    id: _ceRow
-                                    visible: !_ce.editing
-                                    anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; leftMargin: 12; rightMargin: 12 }
-                                    spacing: 10
-                                    Rectangle {
-                                        implicitWidth: 30; implicitHeight: 30; radius: 6
-                                        color: ThemeManager.surfaceContainer
-                                        border.width: 1; border.color: ThemeManager.outlineVariant
-                                        IconImage { anchors.centerIn: parent; implicitSize: 20; source: _ce._iconSrc() }
+                                    function _iconSrc() {
+                                        const ic = String(_ce.modelData.icon ?? "")
+                                        if (ic === "") return ""
+                                        return (ic.startsWith("/") || ic.indexOf("://") >= 0) ? ic : Quickshell.iconPath(ic, true)
                                     }
-                                    ColumnLayout {
-                                        Layout.fillWidth: true; spacing: 1
-                                        Text {
-                                            Layout.fillWidth: true; elide: Text.ElideRight
-                                            text: (_ce.modelData.name && _ce.modelData.name !== "") ? _ce.modelData.name : "Unnamed"
-                                            color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm; font.bold: true
-                                        }
-                                        Text {
-                                            Layout.fillWidth: true; elide: Text.ElideRight
-                                            text: (_ce._ws ? "Toggle workspace · " : "Run · ") + ((_ce.modelData.value && _ce.modelData.value !== "") ? _ce.modelData.value : "not set")
-                                            color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs
-                                        }
-                                    }
-                                    SettingBtn { label: "Edit"; onClicked: root._trayEditIdx = _ce.index }
-                                    SettingBtn { label: "Remove"; danger: true; onClicked: root._trayCustomRemove(_ce.index) }
-                                }
 
-                                // ── Expanded editor ────────────────────────────────
-                                ColumnLayout {
-                                    id: _ceCol
-                                    visible: _ce.editing
-                                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
-                                    spacing: 10
+                                    Layout.fillWidth: true
+                                    Layout.topMargin: 6
+                                    radius: ThemeManager.panelRadius
+                                    color: ThemeManager.surfaceContainerHigh
+                                    border.width: 1; border.color: editing ? ThemeManager.primary : ThemeManager.outlineVariant
+                                    implicitHeight: (editing ? _ceCol.implicitHeight : _ceRow.implicitHeight) + 24
 
-                                    // Header: live icon preview + name field
+                                    // ── Collapsed summary ──────────────────────────────
                                     RowLayout {
-                                        Layout.fillWidth: true
+                                        id: _ceRow
+                                        visible: !_ce.editing
+                                        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; leftMargin: 12; rightMargin: 12 }
                                         spacing: 10
                                         Rectangle {
                                             implicitWidth: 30; implicitHeight: 30; radius: 6
@@ -573,721 +591,766 @@ PanelWindow {
                                             IconImage { anchors.centerIn: parent; implicitSize: 20; source: _ce._iconSrc() }
                                         }
                                         ColumnLayout {
+                                            Layout.fillWidth: true; spacing: 1
+                                            Text {
+                                                Layout.fillWidth: true; elide: Text.ElideRight
+                                                text: (_ce.modelData.name && _ce.modelData.name !== "") ? _ce.modelData.name : "Unnamed"
+                                                color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm; font.bold: true
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true; elide: Text.ElideRight
+                                                text: (_ce._ws ? "Toggle workspace · " : "Run · ") + ((_ce.modelData.value && _ce.modelData.value !== "") ? _ce.modelData.value : "not set")
+                                                color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs
+                                            }
+                                        }
+                                        SettingBtn { label: "Edit"; onClicked: root._trayEditIdx = _ce.index }
+                                        SettingBtn { label: "Remove"; danger: true; onClicked: root._trayCustomRemove(_ce.index) }
+                                    }
+
+                                    // ── Expanded editor ────────────────────────────────
+                                    ColumnLayout {
+                                        id: _ceCol
+                                        visible: _ce.editing
+                                        anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
+                                        spacing: 10
+
+                                        // Header: live icon preview + name field
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 10
+                                            Rectangle {
+                                                implicitWidth: 30; implicitHeight: 30; radius: 6
+                                                color: ThemeManager.surfaceContainer
+                                                border.width: 1; border.color: ThemeManager.outlineVariant
+                                                IconImage { anchors.centerIn: parent; implicitSize: 20; source: _ce._iconSrc() }
+                                            }
+                                            ColumnLayout {
+                                                Layout.fillWidth: true; spacing: 2
+                                                Text { text: "Label (tooltip on hover)"; color: ThemeManager.onSurfaceVariant
+                                                       font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs }
+                                                TextField {
+                                                    Layout.fillWidth: true; implicitHeight: 28
+                                                    text: _ce.modelData.name ?? ""; placeholderText: "e.g. Firefox"
+                                                    color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                                    leftPadding: 8; rightPadding: 8
+                                                    background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainer
+                                                                            border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
+                                                    onEditingFinished: if (text !== (_ce.modelData.name ?? "")) root._trayCustomSet(_ce.index, "name", text)
+                                                }
+                                            }
+                                        }
+
+                                        // Icon field
+                                        ColumnLayout {
                                             Layout.fillWidth: true; spacing: 2
-                                            Text { text: "Label (tooltip on hover)"; color: ThemeManager.onSurfaceVariant
+                                            Text { text: "Icon: freedesktop name (e.g. firefox, spotify) or /path/to/icon.png"
+                                                   color: ThemeManager.onSurfaceVariant
                                                    font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs }
                                             TextField {
                                                 Layout.fillWidth: true; implicitHeight: 28
-                                                text: _ce.modelData.name ?? ""; placeholderText: "e.g. Firefox"
+                                                text: _ce.modelData.icon ?? ""; placeholderText: "firefox"
                                                 color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
                                                 leftPadding: 8; rightPadding: 8
                                                 background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainer
                                                                         border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
-                                                onEditingFinished: if (text !== (_ce.modelData.name ?? "")) root._trayCustomSet(_ce.index, "name", text)
+                                                onEditingFinished: if (text !== (_ce.modelData.icon ?? "")) root._trayCustomSet(_ce.index, "icon", text)
                                             }
                                         }
-                                    }
 
-                                    // Icon field
-                                    ColumnLayout {
-                                        Layout.fillWidth: true; spacing: 2
-                                        Text { text: "Icon: freedesktop name (e.g. firefox, spotify) or /path/to/icon.png"
-                                               color: ThemeManager.onSurfaceVariant
-                                               font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs }
-                                        TextField {
-                                            Layout.fillWidth: true; implicitHeight: 28
-                                            text: _ce.modelData.icon ?? ""; placeholderText: "firefox"
-                                            color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                                            leftPadding: 8; rightPadding: 8
-                                            background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainer
-                                                                    border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
-                                            onEditingFinished: if (text !== (_ce.modelData.icon ?? "")) root._trayCustomSet(_ce.index, "icon", text)
-                                        }
-                                    }
-
-                                    // Action chooser (segmented) + value field
-                                    ColumnLayout {
-                                        Layout.fillWidth: true; spacing: 4
-                                        Text { text: "On left-click"; color: ThemeManager.onSurfaceVariant
-                                               font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs }
-                                        Row {
-                                            spacing: 0
-                                            Repeater {
-                                                model: [{ k: "run", t: "Run a command" }, { k: "ws", t: "Toggle workspace" }]
-                                                delegate: Rectangle {
-                                                    required property var modelData
-                                                    required property int index
-                                                    readonly property bool sel: (_ce.modelData.action ?? "run") === modelData.k
-                                                    implicitWidth: _segT.implicitWidth + 24; implicitHeight: 28
-                                                    topLeftRadius:    index === 0 ? ThemeManager.chipRadius : 0
-                                                    bottomLeftRadius: index === 0 ? ThemeManager.chipRadius : 0
-                                                    topRightRadius:    index === 1 ? ThemeManager.chipRadius : 0
-                                                    bottomRightRadius: index === 1 ? ThemeManager.chipRadius : 0
-                                                    color: sel ? ThemeManager.primary : ThemeManager.surfaceContainer
-                                                    border.width: 1; border.color: sel ? ThemeManager.primary : ThemeManager.outlineVariant
-                                                    Text { id: _segT; anchors.centerIn: parent; text: modelData.t
-                                                           color: parent.sel ? ThemeManager.onPrimary : ThemeManager.onSurfaceVariant
-                                                           font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
-                                                    TapHandler { onTapped: root._trayCustomSet(_ce.index, "action", modelData.k) }
+                                        // Action chooser (segmented) + value field
+                                        ColumnLayout {
+                                            Layout.fillWidth: true; spacing: 4
+                                            Text { text: "On left-click"; color: ThemeManager.onSurfaceVariant
+                                                   font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs }
+                                            Row {
+                                                spacing: 0
+                                                Repeater {
+                                                    model: [{ k: "run", t: "Run a command" }, { k: "ws", t: "Toggle workspace" }]
+                                                    delegate: Rectangle {
+                                                        required property var modelData
+                                                        required property int index
+                                                        readonly property bool sel: (_ce.modelData.action ?? "run") === modelData.k
+                                                        implicitWidth: _segT.implicitWidth + 24; implicitHeight: 28
+                                                        topLeftRadius:    index === 0 ? ThemeManager.chipRadius : 0
+                                                        bottomLeftRadius: index === 0 ? ThemeManager.chipRadius : 0
+                                                        topRightRadius:    index === 1 ? ThemeManager.chipRadius : 0
+                                                        bottomRightRadius: index === 1 ? ThemeManager.chipRadius : 0
+                                                        color: sel ? ThemeManager.primary : ThemeManager.surfaceContainer
+                                                        border.width: 1; border.color: sel ? ThemeManager.primary : ThemeManager.outlineVariant
+                                                        Text { id: _segT; anchors.centerIn: parent; text: modelData.t
+                                                               color: parent.sel ? ThemeManager.onPrimary : ThemeManager.onSurfaceVariant
+                                                               font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
+                                                        TapHandler { onTapped: root._trayCustomSet(_ce.index, "action", modelData.k) }
+                                                    }
                                                 }
                                             }
+                                            TextField {
+                                                Layout.fillWidth: true; Layout.topMargin: 2; implicitHeight: 28
+                                                text: _ce.modelData.value ?? ""
+                                                placeholderText: _ce._ws ? "special workspace name (e.g. spotify)" : "command to run (e.g. firefox)"
+                                                color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                                leftPadding: 8; rightPadding: 8
+                                                background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainer
+                                                                        border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
+                                                onEditingFinished: if (text !== (_ce.modelData.value ?? "")) root._trayCustomSet(_ce.index, "value", text)
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                                text: _ce._ws
+                                                    ? "Click peeks/hides that Hyprland special workspace (park the app there via a window rule)."
+                                                    : "Click runs this shell command (launches or focuses the app)."
+                                                color: ThemeManager.onSurfaceVariant
+                                                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs
+                                            }
                                         }
-                                        TextField {
-                                            Layout.fillWidth: true; Layout.topMargin: 2; implicitHeight: 28
-                                            text: _ce.modelData.value ?? ""
-                                            placeholderText: _ce._ws ? "special workspace name (e.g. spotify)" : "command to run (e.g. firefox)"
-                                            color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                                            leftPadding: 8; rightPadding: 8
-                                            background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainer
-                                                                    border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
-                                            onEditingFinished: if (text !== (_ce.modelData.value ?? "")) root._trayCustomSet(_ce.index, "value", text)
-                                        }
-                                        Text {
-                                            Layout.fillWidth: true; wrapMode: Text.WordWrap
-                                            text: _ce._ws
-                                                ? "Click peeks/hides that Hyprland special workspace (park the app there via a window rule)."
-                                                : "Click runs this shell command (launches or focuses the app)."
-                                            color: ThemeManager.onSurfaceVariant
-                                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs
-                                        }
-                                    }
 
-                                    // Footer: Remove + Validate (collapse)
-                                    RowLayout {
-                                        Layout.fillWidth: true; Layout.topMargin: 2
-                                        SettingBtn { label: "Remove"; danger: true; onClicked: root._trayCustomRemove(_ce.index) }
-                                        Item { Layout.fillWidth: true }
-                                        SettingBtn { label: "Validate"; onClicked: root._trayEditIdx = -1 }
+                                        // Footer: Remove + Validate (collapse)
+                                        RowLayout {
+                                            Layout.fillWidth: true; Layout.topMargin: 2
+                                            SettingBtn { label: "Remove"; danger: true; onClicked: root._trayCustomRemove(_ce.index) }
+                                            Item { Layout.fillWidth: true }
+                                            SettingBtn { label: "Validate"; onClicked: root._trayEditIdx = -1 }
+                                        }
                                     }
                                 }
                             }
+
+                            SettingBtn { Layout.topMargin: 8; label: "+  Add entry"; onClicked: root._trayCustomAdd() }
                         }
 
-                        SettingBtn { Layout.topMargin: 8; label: "+  Add entry"; onClicked: root._trayCustomAdd() }
-
-                        SettingSection { text: "System tray"; Layout.topMargin: 12 }
-                        Text {
-                            Layout.fillWidth: true; Layout.bottomMargin: 4
-                            text: "Per app: hide it, or set a special workspace (left-click then toggles that workspace instead of activating)."
-                            wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
-                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                        }
-                        Repeater {
-                            model: SystemTray.items
-                            delegate: RowLayout {
-                                required property var modelData
-                                Layout.fillWidth: true
-                                spacing: 10
-                                IconImage { implicitSize: 18; source: modelData.icon ?? "" }
-                                Text {
+                        SettingGroup {
+                            title: "System tray"
+                            keywords: "tray hide hidden visible special workspace"
+                            Text {
+                                Layout.fillWidth: true; Layout.bottomMargin: 4
+                                text: "Per app: hide it, or set a special workspace (left-click then toggles that workspace instead of activating)."
+                                wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
+                                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                            }
+                            Repeater {
+                                model: SystemTray.items
+                                delegate: RowLayout {
+                                    required property var modelData
                                     Layout.fillWidth: true
-                                    text: (modelData.tooltipTitle && modelData.tooltipTitle !== "") ? modelData.tooltipTitle
-                                        : ((modelData.title && modelData.title !== "") ? modelData.title : (modelData.id ?? "item"))
-                                    color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                                    elide: Text.ElideRight
-                                }
-                                TextField {
-                                    Layout.preferredWidth: 104; implicitHeight: 26
-                                    text: root._trayWs(modelData); placeholderText: "workspace"
-                                    color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                                    leftPadding: 8; rightPadding: 8
-                                    background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
-                                                            border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
-                                    onEditingFinished: if (text !== root._trayWs(modelData)) root._traySetWs(modelData, text)
-                                }
-                                SettingBtn {
-                                    readonly property bool _hidden: root._trayIsHidden(modelData)
-                                    label: _hidden ? "Hidden" : "Visible"; danger: _hidden
-                                    onClicked: root._trayToggleHide(modelData)
-                                }
-                            }
-                        }
-                        Text {
-                            visible: (SystemTray.items?.values ?? []).length === 0
-                            text: "No tray items."
-                            color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                        }
-
-                        // Launch rules (Hyprland window rules) --------------------
-                        SettingSection { text: "Launch in special workspace"; Layout.topMargin: 12 }
-                        Text {
-                            Layout.fillWidth: true; Layout.bottomMargin: 4
-                            text: "Windows whose class matches open directly in that special workspace. Switch off to let the app open normally. Use the same workspace name as the tray mapping above. Applies to windows opened from now on."
-                            wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
-                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                        }
-                        Repeater {
-                            model: HyprlandConfigService.specialRules
-                            delegate: RowLayout {
-                                id: _sr
-                                required property var modelData
-                                required property int index
-                                readonly property bool on: modelData.enabled !== false
-                                readonly property var hit: HyprlandConfigService.matchedClass(modelData.class ?? "")
-                                Layout.fillWidth: true
-                                spacing: 10
-                                SwitchPill {
-                                    on: _sr.on
-                                    onToggled: HyprlandConfigService.setSpecialRule(_sr.index, "enabled", !_sr.on)
-                                }
-                                ColumnLayout {
-                                    Layout.fillWidth: true; spacing: 1
-                                    opacity: _sr.on ? 1 : 0.5
+                                    spacing: 10
+                                    IconImage { implicitSize: 18; source: modelData.icon ?? "" }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: (modelData.tooltipTitle && modelData.tooltipTitle !== "") ? modelData.tooltipTitle
+                                            : ((modelData.title && modelData.title !== "") ? modelData.title : (modelData.id ?? "item"))
+                                        color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                        elide: Text.ElideRight
+                                    }
                                     TextField {
-                                        Layout.fillWidth: true; implicitHeight: 26
-                                        text: _sr.modelData.class ?? ""; placeholderText: "window class regex (e.g. rocket-chat)"
+                                        Layout.preferredWidth: 104; implicitHeight: 26
+                                        text: root._trayWs(modelData); placeholderText: "workspace"
                                         color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
                                         leftPadding: 8; rightPadding: 8
                                         background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
                                                                 border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
-                                        onEditingFinished: if (text !== (_sr.modelData.class ?? "")) HyprlandConfigService.setSpecialRule(_sr.index, "class", text.trim())
+                                        onEditingFinished: if (text !== root._trayWs(modelData)) root._traySetWs(modelData, text)
                                     }
-                                    Text {
-                                        Layout.fillWidth: true; elide: Text.ElideRight
-                                        text: _sr.hit === null ? "Invalid regex"
-                                            : (_sr.hit !== "" ? "Matches open window: " + _sr.hit : "No open window matches")
-                                        color: _sr.hit === null ? ThemeManager.error : ThemeManager.onSurfaceVariant
-                                        font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs
+                                    SettingBtn {
+                                        readonly property bool _hidden: root._trayIsHidden(modelData)
+                                        label: _hidden ? "Hidden" : "Visible"; danger: _hidden
+                                        onClicked: root._trayToggleHide(modelData)
                                     }
                                 }
-                                Text { text: "special:"; color: ThemeManager.onSurfaceVariant; opacity: _sr.on ? 1 : 0.5
-                                       font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm; Layout.alignment: Qt.AlignTop; Layout.topMargin: 5 }
-                                TextField {
-                                    Layout.preferredWidth: 104; implicitHeight: 26; Layout.alignment: Qt.AlignTop
-                                    opacity: _sr.on ? 1 : 0.5
-                                    text: _sr.modelData.ws ?? ""; placeholderText: "workspace"
-                                    color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                                    leftPadding: 8; rightPadding: 8
-                                    background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
-                                                            border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
-                                    onEditingFinished: if (text !== (_sr.modelData.ws ?? "")) HyprlandConfigService.setSpecialRule(_sr.index, "ws", text.trim())
-                                }
-                                SettingBtn { Layout.alignment: Qt.AlignTop; label: "Remove"; danger: true; onClicked: HyprlandConfigService.removeSpecialRule(_sr.index) }
+                            }
+                            Text {
+                                visible: (SystemTray.items?.values ?? []).length === 0
+                                text: "No tray items."
+                                color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
                             }
                         }
-                        RowLayout {
-                            Layout.topMargin: 8; spacing: 8
-                            SettingBtn { label: "+  Add rule"; onClicked: HyprlandConfigService.addSpecialRule("", "") }
-                            SettingBtn { label: "Refresh windows"; onClicked: HyprlandConfigService.refreshClients() }
-                        }
-                        Text {
-                            Layout.topMargin: 6
-                            visible: _openClasses.count > 0
-                            text: "Add from an open window:"
-                            color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                        }
-                        Flow {
-                            Layout.fillWidth: true; spacing: 6
+
+                        // Launch rules (Hyprland window rules) --------------------
+                        SettingGroup {
+                            title: "Launch in special workspace"
+                            keywords: "window rule class tray app spotify"
+                            Text {
+                                Layout.fillWidth: true; Layout.bottomMargin: 4
+                                text: "Windows whose class matches open directly in that special workspace. Switch off to let the app open normally. Use the same workspace name as the tray mapping above. Applies to windows opened from now on."
+                                wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
+                                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                            }
                             Repeater {
-                                id: _openClasses
-                                // Unique classes of open windows not already covered by a rule.
-                                model: {
-                                    const rules = HyprlandConfigService.specialRules
-                                    const seen = new Set()
-                                    return HyprlandConfigService.clients.map(c => c.class).filter(cls => {
-                                        if (seen.has(cls)) return false
-                                        seen.add(cls)
-                                        return !rules.some(r => {
-                                            try { return new RegExp("^(?:" + (r.class ?? "") + ")$").test(cls) } catch (e) { return false }
-                                        })
-                                    })
+                                model: HyprlandConfigService.specialRules
+                                delegate: RowLayout {
+                                    id: _sr
+                                    required property var modelData
+                                    required property int index
+                                    readonly property bool on: modelData.enabled !== false
+                                    readonly property var hit: HyprlandConfigService.matchedClass(modelData.class ?? "")
+                                    Layout.fillWidth: true
+                                    spacing: 10
+                                    SwitchPill {
+                                        on: _sr.on
+                                        onToggled: HyprlandConfigService.setSpecialRule(_sr.index, "enabled", !_sr.on)
+                                    }
+                                    ColumnLayout {
+                                        Layout.fillWidth: true; spacing: 1
+                                        opacity: _sr.on ? 1 : 0.5
+                                        TextField {
+                                            Layout.fillWidth: true; implicitHeight: 26
+                                            text: _sr.modelData.class ?? ""; placeholderText: "window class regex (e.g. rocket-chat)"
+                                            color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                            leftPadding: 8; rightPadding: 8
+                                            background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
+                                                                    border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
+                                            onEditingFinished: if (text !== (_sr.modelData.class ?? "")) HyprlandConfigService.setSpecialRule(_sr.index, "class", text.trim())
+                                        }
+                                        Text {
+                                            Layout.fillWidth: true; elide: Text.ElideRight
+                                            text: _sr.hit === null ? "Invalid regex"
+                                                : (_sr.hit !== "" ? "Matches open window: " + _sr.hit : "No open window matches")
+                                            color: _sr.hit === null ? ThemeManager.error : ThemeManager.onSurfaceVariant
+                                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs
+                                        }
+                                    }
+                                    Text { text: "special:"; color: ThemeManager.onSurfaceVariant; opacity: _sr.on ? 1 : 0.5
+                                           font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm; Layout.alignment: Qt.AlignTop; Layout.topMargin: 5 }
+                                    TextField {
+                                        Layout.preferredWidth: 104; implicitHeight: 26; Layout.alignment: Qt.AlignTop
+                                        opacity: _sr.on ? 1 : 0.5
+                                        text: _sr.modelData.ws ?? ""; placeholderText: "workspace"
+                                        color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                        leftPadding: 8; rightPadding: 8
+                                        background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
+                                                                border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
+                                        onEditingFinished: if (text !== (_sr.modelData.ws ?? "")) HyprlandConfigService.setSpecialRule(_sr.index, "ws", text.trim())
+                                    }
+                                    SettingBtn { Layout.alignment: Qt.AlignTop; label: "Remove"; danger: true; onClicked: HyprlandConfigService.removeSpecialRule(_sr.index) }
                                 }
-                                delegate: SettingBtn {
-                                    required property string modelData
-                                    label: "+ " + modelData
-                                    onClicked: HyprlandConfigService.addSpecialRule(
-                                        modelData.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
-                                        modelData.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""))
+                            }
+                            RowLayout {
+                                Layout.topMargin: 8; spacing: 8
+                                SettingBtn { label: "+  Add rule"; onClicked: HyprlandConfigService.addSpecialRule("", "") }
+                                SettingBtn { label: "Refresh windows"; onClicked: HyprlandConfigService.refreshClients() }
+                            }
+                            Text {
+                                Layout.topMargin: 6
+                                visible: _openClasses.count > 0
+                                text: "Add from an open window:"
+                                color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                            }
+                            Flow {
+                                Layout.fillWidth: true; spacing: 6
+                                Repeater {
+                                    id: _openClasses
+                                    // Unique classes of open windows not already covered by a rule.
+                                    model: {
+                                        const rules = HyprlandConfigService.specialRules
+                                        const seen = new Set()
+                                        return HyprlandConfigService.clients.map(c => c.class).filter(cls => {
+                                            if (seen.has(cls)) return false
+                                            seen.add(cls)
+                                            return !rules.some(r => {
+                                                try { return new RegExp("^(?:" + (r.class ?? "") + ")$").test(cls) } catch (e) { return false }
+                                            })
+                                        })
+                                    }
+                                    delegate: SettingBtn {
+                                        required property string modelData
+                                        label: "+ " + modelData
+                                        onClicked: HyprlandConfigService.addSpecialRule(
+                                            modelData.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+                                            modelData.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""))
+                                    }
                                 }
                             }
                         }
                     }
 
                     // Tools ---------------------------------------------------------
-                    ColumnLayout {
-                        visible: SettingsUi.category === "tools"
-                        Layout.fillWidth: true
-                        Layout.margins: 20
-                        spacing: 8
-                        SettingSection { text: "Tools toolbar" }
-                        SettingToggle { label: "Enable toolbar"; path: "tools.enabled"; def: true }
-                        SettingToggle { label: "Wallpaper picker"; sub: "Built-in background/theme tool"; dep: "matugen"; path: "tools.wallpaper"; def: true }
-
-                        SettingSection { text: "Custom tools"; Layout.topMargin: 12 }
-                        Text {
-                            Layout.fillWidth: true; Layout.bottomMargin: 2
-                            text: "Add your own rail buttons, each running a command. Examples: file manager (kitty -e yazi), screen record (wf-recorder -g \"$(slurp)\" -f ~/rec.mp4)."
-                            wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
-                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                    SettingPage {
+                        cat: "tools"
+                        SettingGroup {
+                            title: "Tools toolbar"
+                            keywords: "rail dock wallpaper picker"
+                            SettingToggle { label: "Enable toolbar"; path: "tools.enabled"; def: true }
+                            SettingToggle { label: "Wallpaper picker"; sub: "Built-in background/theme tool"; dep: "matugen"; path: "tools.wallpaper"; def: true }
                         }
-                        Repeater {
-                            model: root._toolCustomList
-                            delegate: Rectangle {
-                                id: _tc
-                                required property var modelData
-                                required property int index
-                                readonly property bool editing: root._toolEditIdx === index
 
-                                Layout.fillWidth: true
-                                Layout.topMargin: 6
-                                radius: ThemeManager.panelRadius
-                                color: ThemeManager.surfaceContainerHigh
-                                border.width: 1; border.color: editing ? ThemeManager.primary : ThemeManager.outlineVariant
-                                implicitHeight: (editing ? _tcCol.implicitHeight : _tcRow.implicitHeight) + 24
+                        SettingGroup {
+                            title: "Custom tools"
+                            keywords: "tool button command icon rail"
+                            Text {
+                                Layout.fillWidth: true; Layout.bottomMargin: 2
+                                text: "Add your own rail buttons, each running a command. Examples: file manager (kitty -e yazi), screen record (wf-recorder -g \"$(slurp)\" -f ~/rec.mp4)."
+                                wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
+                                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                            }
+                            Repeater {
+                                model: root._toolCustomList
+                                delegate: Rectangle {
+                                    id: _tc
+                                    required property var modelData
+                                    required property int index
+                                    readonly property bool editing: root._toolEditIdx === index
 
-                                // Collapsed summary
-                                RowLayout {
-                                    id: _tcRow
-                                    visible: !_tc.editing
-                                    anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; leftMargin: 12; rightMargin: 12 }
-                                    spacing: 10
-                                    Text {
-                                        text: _tc.modelData.icon || "󰘔"; color: ThemeManager.onSurface
-                                        font.family: ThemeManager.fontFamily; font.pixelSize: 22
-                                        Layout.preferredWidth: 28; horizontalAlignment: Text.AlignHCenter
-                                    }
-                                    ColumnLayout {
-                                        Layout.fillWidth: true; spacing: 1
+                                    Layout.fillWidth: true
+                                    Layout.topMargin: 6
+                                    radius: ThemeManager.panelRadius
+                                    color: ThemeManager.surfaceContainerHigh
+                                    border.width: 1; border.color: editing ? ThemeManager.primary : ThemeManager.outlineVariant
+                                    implicitHeight: (editing ? _tcCol.implicitHeight : _tcRow.implicitHeight) + 24
+
+                                    // Collapsed summary
+                                    RowLayout {
+                                        id: _tcRow
+                                        visible: !_tc.editing
+                                        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; leftMargin: 12; rightMargin: 12 }
+                                        spacing: 10
                                         Text {
-                                            Layout.fillWidth: true; elide: Text.ElideRight
-                                            text: (_tc.modelData.name && _tc.modelData.name !== "") ? _tc.modelData.name : "Unnamed"
-                                            color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm; font.bold: true
+                                            text: _tc.modelData.icon || "󰘔"; color: ThemeManager.onSurface
+                                            font.family: ThemeManager.fontFamily; font.pixelSize: 22
+                                            Layout.preferredWidth: 28; horizontalAlignment: Text.AlignHCenter
                                         }
-                                        Text {
-                                            Layout.fillWidth: true; elide: Text.ElideRight
-                                            text: (_tc.modelData.command && _tc.modelData.command !== "") ? _tc.modelData.command : "no command"
-                                            color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs
+                                        ColumnLayout {
+                                            Layout.fillWidth: true; spacing: 1
+                                            Text {
+                                                Layout.fillWidth: true; elide: Text.ElideRight
+                                                text: (_tc.modelData.name && _tc.modelData.name !== "") ? _tc.modelData.name : "Unnamed"
+                                                color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm; font.bold: true
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true; elide: Text.ElideRight
+                                                text: (_tc.modelData.command && _tc.modelData.command !== "") ? _tc.modelData.command : "no command"
+                                                color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs
+                                            }
                                         }
+                                        SettingBtn { label: "Edit"; onClicked: root._toolEditIdx = _tc.index }
+                                        SettingBtn { label: "Remove"; danger: true; onClicked: root._toolCustomRemove(_tc.index) }
                                     }
-                                    SettingBtn { label: "Edit"; onClicked: root._toolEditIdx = _tc.index }
-                                    SettingBtn { label: "Remove"; danger: true; onClicked: root._toolCustomRemove(_tc.index) }
-                                }
 
-                                // Expanded editor
-                                ColumnLayout {
-                                    id: _tcCol
-                                    visible: _tc.editing
-                                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
-                                    spacing: 10
+                                    // Expanded editor
+                                    ColumnLayout {
+                                        id: _tcCol
+                                        visible: _tc.editing
+                                        anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
+                                        spacing: 10
 
-                                    ColumnLayout {
-                                        Layout.fillWidth: true; spacing: 2
-                                        Text { text: "Name (tooltip)"; color: ThemeManager.onSurfaceVariant
-                                               font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs }
-                                        TextField {
-                                            Layout.fillWidth: true; implicitHeight: 28
-                                            text: _tc.modelData.name ?? ""; placeholderText: "e.g. Files"
-                                            color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                                            leftPadding: 8; rightPadding: 8
-                                            background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainer
-                                                                    border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
-                                            onEditingFinished: if (text !== (_tc.modelData.name ?? "")) root._toolCustomSet(_tc.index, "name", text)
+                                        ColumnLayout {
+                                            Layout.fillWidth: true; spacing: 2
+                                            Text { text: "Name (tooltip)"; color: ThemeManager.onSurfaceVariant
+                                                   font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs }
+                                            TextField {
+                                                Layout.fillWidth: true; implicitHeight: 28
+                                                text: _tc.modelData.name ?? ""; placeholderText: "e.g. Files"
+                                                color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                                leftPadding: 8; rightPadding: 8
+                                                background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainer
+                                                                        border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
+                                                onEditingFinished: if (text !== (_tc.modelData.name ?? "")) root._toolCustomSet(_tc.index, "name", text)
+                                            }
                                         }
-                                    }
-                                    ColumnLayout {
-                                        Layout.fillWidth: true; spacing: 2
-                                        Text { text: "Command"; color: ThemeManager.onSurfaceVariant
-                                               font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs }
-                                        TextField {
-                                            Layout.fillWidth: true; implicitHeight: 28
-                                            text: _tc.modelData.command ?? ""; placeholderText: "kitty -e yazi"
-                                            color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                                            leftPadding: 8; rightPadding: 8
-                                            background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainer
-                                                                    border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
-                                            onEditingFinished: if (text !== (_tc.modelData.command ?? "")) root._toolCustomSet(_tc.index, "command", text)
+                                        ColumnLayout {
+                                            Layout.fillWidth: true; spacing: 2
+                                            Text { text: "Command"; color: ThemeManager.onSurfaceVariant
+                                                   font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs }
+                                            TextField {
+                                                Layout.fillWidth: true; implicitHeight: 28
+                                                text: _tc.modelData.command ?? ""; placeholderText: "kitty -e yazi"
+                                                color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                                leftPadding: 8; rightPadding: 8
+                                                background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainer
+                                                                        border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
+                                                onEditingFinished: if (text !== (_tc.modelData.command ?? "")) root._toolCustomSet(_tc.index, "command", text)
+                                            }
                                         }
-                                    }
-                                    // Icon picker — grid of glyphs
-                                    ColumnLayout {
-                                        Layout.fillWidth: true; spacing: 4
-                                        Text { text: "Icon"; color: ThemeManager.onSurfaceVariant
-                                               font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs }
-                                        Flow {
+                                        // Icon picker: grid of glyphs
+                                        ColumnLayout {
                                             Layout.fillWidth: true; spacing: 4
-                                            Repeater {
-                                                model: root._toolIcons
-                                                delegate: Rectangle {
-                                                    required property var modelData
-                                                    readonly property bool sel: (_tc.modelData.icon || "") === modelData
-                                                    width: 34; height: 34; radius: 8
-                                                    color: sel ? Qt.rgba(ThemeManager.primary.r, ThemeManager.primary.g, ThemeManager.primary.b, 0.22)
-                                                               : ThemeManager.surfaceContainer
-                                                    border.width: 1; border.color: sel ? ThemeManager.primary : ThemeManager.outlineVariant
-                                                    Text { anchors.centerIn: parent; text: modelData
-                                                           color: parent.sel ? ThemeManager.primary : ThemeManager.onSurfaceVariant
-                                                           font.family: ThemeManager.fontFamily; font.pixelSize: 20 }
-                                                    TapHandler { onTapped: root._toolCustomSet(_tc.index, "icon", modelData) }
+                                            Text { text: "Icon"; color: ThemeManager.onSurfaceVariant
+                                                   font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs }
+                                            Flow {
+                                                Layout.fillWidth: true; spacing: 4
+                                                Repeater {
+                                                    model: root._toolIcons
+                                                    delegate: Rectangle {
+                                                        required property var modelData
+                                                        readonly property bool sel: (_tc.modelData.icon || "") === modelData
+                                                        width: 34; height: 34; radius: 8
+                                                        color: sel ? Qt.rgba(ThemeManager.primary.r, ThemeManager.primary.g, ThemeManager.primary.b, 0.22)
+                                                                   : ThemeManager.surfaceContainer
+                                                        border.width: 1; border.color: sel ? ThemeManager.primary : ThemeManager.outlineVariant
+                                                        Text { anchors.centerIn: parent; text: modelData
+                                                               color: parent.sel ? ThemeManager.primary : ThemeManager.onSurfaceVariant
+                                                               font.family: ThemeManager.fontFamily; font.pixelSize: 20 }
+                                                        TapHandler { onTapped: root._toolCustomSet(_tc.index, "icon", modelData) }
+                                                    }
                                                 }
                                             }
                                         }
-                                    }
 
-                                    RowLayout {
-                                        Layout.fillWidth: true; Layout.topMargin: 2
-                                        SettingBtn { label: "Remove"; danger: true; onClicked: root._toolCustomRemove(_tc.index) }
-                                        Item { Layout.fillWidth: true }
-                                        SettingBtn { label: "Validate"; onClicked: root._toolEditIdx = -1 }
+                                        RowLayout {
+                                            Layout.fillWidth: true; Layout.topMargin: 2
+                                            SettingBtn { label: "Remove"; danger: true; onClicked: root._toolCustomRemove(_tc.index) }
+                                            Item { Layout.fillWidth: true }
+                                            SettingBtn { label: "Validate"; onClicked: root._toolEditIdx = -1 }
+                                        }
                                     }
                                 }
                             }
+                            SettingBtn { Layout.topMargin: 8; label: "+  Add tool"; onClicked: root._toolCustomAdd() }
                         }
-                        SettingBtn { Layout.topMargin: 8; label: "+  Add tool"; onClicked: root._toolCustomAdd() }
                     }
 
                     // Wallpaper -----------------------------------------------------
-                    ColumnLayout {
+                    SettingPage {
+                        cat: "wallpaper"
                         id: _wpPane
-                        visible: SettingsUi.category === "wallpaper"
-                        Layout.fillWidth: true
-                        Layout.margins: 20
-                        spacing: 8
 
                         readonly property var _localList: WallpaperService.wallpapers
                         readonly property var _favList:   WallpaperService.favorites
                         readonly property var _shownList: root._wpTab === "favorites" ? _favList : _localList
                         property int _rotAnchor: -1   // last-clicked index, for shift-range rotation select
 
-                        Text {
-                            visible: !WallpaperService.available
-                            Layout.fillWidth: true
-                            text: "hyprpaper is not installed, so the wallpaper switcher is disabled."
-                            wrapMode: Text.WordWrap; color: ThemeManager.error
-                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                        }
-
-                        // ── Tabs ──────────────────────────────────────────────────
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 6
-                            Repeater {
-                                model: [ { id: "local", label: "Local" }, { id: "favorites", label: "Favorites" }, { id: "browse", label: "Browse" } ]
-                                delegate: Rectangle {
-                                    required property var modelData
-                                    readonly property bool sel: root._wpTab === modelData.id
-                                    implicitWidth: _wtl.implicitWidth + 24; implicitHeight: 30
-                                    radius: ThemeManager.chipRadius
-                                    color: sel ? Qt.rgba(ThemeManager.primary.r, ThemeManager.primary.g, ThemeManager.primary.b, 0.18)
-                                               : (_wtMa.containsMouse ? Qt.rgba(ThemeManager.onSurface.r, ThemeManager.onSurface.g, ThemeManager.onSurface.b, 0.08) : "transparent")
-                                    Text {
-                                        id: _wtl; anchors.centerIn: parent; text: modelData.label
-                                        color: parent.sel ? ThemeManager.primary : ThemeManager.onSurface
-                                        font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                                    }
-                                    MouseArea { id: _wtMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root._wpTab = modelData.id }
-                                }
+                        SettingGroup {
+                            title: "Library"
+                            keywords: "wallpaper favorites browse wallhaven download local"
+                            Text {
+                                visible: !WallpaperService.available
+                                Layout.fillWidth: true
+                                text: "hyprpaper is not installed, so the wallpaper switcher is disabled."
+                                wrapMode: Text.WordWrap; color: ThemeManager.error
+                                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
                             }
-                            Item { Layout.fillWidth: true }
-                            SettingBtn { label: "Refresh"; onClicked: WallpaperService.refresh() }
-                        }
 
-                        Text {
-                            visible: root._wpTab !== "browse" && _wpPane._shownList.length === 0
-                            Layout.topMargin: 8
-                            text: root._wpTab === "favorites" ? "No favorites yet. Click the heart on a wallpaper to add one."
-                                                              : "No wallpapers in ~/wallpaper."
-                            color: ThemeManager.onSurfaceVariant
-                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                            opacity: 0.7
-                        }
-
-                        // ── Local / Favorites thumbnail grid ──────────────────────
-                        Flow {
-                            id: _wpGrid
-                            visible: root._wpTab !== "browse"
-                            Layout.fillWidth: true
-                            Layout.topMargin: 6
-                            spacing: 8
-                            // Tiles stretch so the row is filled instead of ending in a gap.
-                            readonly property int  _cols:  Math.max(2, Math.floor((width + spacing) / (150 + spacing)))
-                            readonly property real _tileW: Math.floor((width - (_cols - 1) * spacing) / _cols)
-                            Repeater {
-                                model: root._wpTab === "browse" ? [] : _wpPane._shownList
-                                delegate: ClippingRectangle {
-                                    id: _tile
-                                    required property var modelData
-                                    required property int index
-                                    readonly property string _path: "" + modelData
-                                    readonly property bool _isCurrent: WallpaperService.current === _path
-                                    readonly property bool _inRot: WallpaperService.isInRotation(_path)
-                                    width: _wpGrid._tileW; height: Math.round(width * 9 / 16)
-                                    radius: ThemeManager.chipRadius
-                                    color: ThemeManager.surfaceContainerHigh
-
-                                    Image {
-                                        anchors.fill: parent
-                                        source: "file://" + _tile._path
-                                        fillMode: Image.PreserveAspectCrop
-                                        asynchronous: true; cache: false
-                                        sourceSize.width: 336
-                                    }
-                                    // Border: current wallpaper (primary) or in-rotation (tertiary)
-                                    Rectangle {
-                                        anchors.fill: parent; radius: _tile.radius; color: "transparent"
-                                        border.width: (_tile._isCurrent || _tile._inRot) ? 2 : 0
-                                        border.color: _tile._isCurrent ? ThemeManager.primary : ThemeManager.tertiary
-                                    }
-                                    // Hover darken
-                                    Rectangle {
-                                        anchors.fill: parent; radius: _tile.radius
-                                        color: Qt.rgba(0, 0, 0, _tileMa.containsMouse ? 0.18 : 0)
-                                    }
-                                    // Rotation badge (bottom-left) — membership set via ctrl/shift-click
-                                    Rectangle {
-                                        visible: _tile._inRot
-                                        anchors { left: parent.left; bottom: parent.bottom; margins: 5 }
-                                        width: 20; height: 20; radius: 10
-                                        color: Qt.rgba(ThemeManager.tertiary.r, ThemeManager.tertiary.g, ThemeManager.tertiary.b, 0.9)
-                                        Text { anchors.centerIn: parent; text: "󰑖"; color: ThemeManager.onTertiary
-                                               font.family: ThemeManager.fontFamily; font.pixelSize: 12 }
-                                    }
-                                    // Click: plain = set; ctrl = toggle rotation; shift = range-add to rotation
-                                    MouseArea {
-                                        id: _tileMa
-                                        anchors.fill: parent
-                                        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                        onClicked: (m) => {
-                                            if (m.modifiers & Qt.ControlModifier) {
-                                                WallpaperService.toggleRotation(_tile._path)
-                                                _wpPane._rotAnchor = _tile.index
-                                            } else if (m.modifiers & Qt.ShiftModifier) {
-                                                const list = _wpPane._shownList
-                                                const a = _wpPane._rotAnchor >= 0 ? _wpPane._rotAnchor : _tile.index
-                                                const lo = Math.min(a, _tile.index), hi = Math.max(a, _tile.index)
-                                                const r = (WallpaperService.rotationPaths || []).slice()
-                                                for (let i = lo; i <= hi; i++) {
-                                                    const pp = "" + list[i]
-                                                    if (r.indexOf(pp) < 0) r.push(pp)
-                                                }
-                                                WallpaperService.setRotation(r)
-                                            } else {
-                                                WallpaperService.commit(_tile._path)
-                                                _wpPane._rotAnchor = _tile.index
-                                            }
-                                        }
-                                    }
-                                    // Favorite button (on top of the tile MouseArea so it stays clickable)
-                                    WpTileBtn {
-                                        anchors { top: parent.top; right: parent.right; margins: 5 }
-                                        icon: WallpaperService.isFavorite(_tile._path) ? "󰋑" : "󰋕"
-                                        active: WallpaperService.isFavorite(_tile._path)
-                                        onClicked: WallpaperService.toggleFavorite(_tile._path)
-                                    }
-                                }
-                            }
-                        }
-
-                        // ── Browse (Wallhaven) ────────────────────────────────────
-                        ColumnLayout {
-                            visible: root._wpTab === "browse"
-                            Layout.fillWidth: true
-                            Layout.topMargin: 6
-                            spacing: 6
-
+                            // ── Tabs ──────────────────────────────────────────────────
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 6
-                                TextField {
-                                    id: _whSearch
-                                    Layout.fillWidth: true; implicitHeight: 30
-                                    placeholderText: "Search wallhaven.cc…"
-                                    color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                                    leftPadding: 10; rightPadding: 10
-                                    background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
-                                                            border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
-                                    onAccepted: WallhavenService.search(text, _whSort.cur)
-                                }
-                                SettingBtn { label: "Search"; onClicked: WallhavenService.search(_whSearch.text, _whSort.cur) }
-                            }
-                            // Sorting
-                            RowLayout {
-                                Layout.fillWidth: true
-                                spacing: 4
                                 Repeater {
-                                    model: [ { k: "toplist", l: "Top" }, { k: "date_added", l: "Latest" }, { k: "views", l: "Views" }, { k: "random", l: "Random" } ]
+                                    model: [ { id: "local", label: "Local" }, { id: "favorites", label: "Favorites" }, { id: "browse", label: "Browse" } ]
                                     delegate: Rectangle {
                                         required property var modelData
-                                        readonly property bool sel: _whSort.cur === modelData.k
-                                        implicitWidth: _whsl.implicitWidth + 18; implicitHeight: 26
+                                        readonly property bool sel: root._wpTab === modelData.id
+                                        implicitWidth: _wtl.implicitWidth + 24; implicitHeight: 30
                                         radius: ThemeManager.chipRadius
                                         color: sel ? Qt.rgba(ThemeManager.primary.r, ThemeManager.primary.g, ThemeManager.primary.b, 0.18)
-                                                   : (_whsMa.containsMouse ? Qt.rgba(ThemeManager.onSurface.r, ThemeManager.onSurface.g, ThemeManager.onSurface.b, 0.08) : "transparent")
-                                        Text { id: _whsl; anchors.centerIn: parent; text: modelData.l
-                                               color: parent.sel ? ThemeManager.primary : ThemeManager.onSurface
-                                               font.family: ThemeManager.fontFamily; font.pixelSize: 11 }
-                                        MouseArea { id: _whsMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                                    onClicked: { _whSort.cur = modelData.k; WallhavenService.search(_whSearch.text, modelData.k) } }
+                                                   : (_wtMa.containsMouse ? Qt.rgba(ThemeManager.onSurface.r, ThemeManager.onSurface.g, ThemeManager.onSurface.b, 0.08) : "transparent")
+                                        Text {
+                                            id: _wtl; anchors.centerIn: parent; text: modelData.label
+                                            color: parent.sel ? ThemeManager.primary : ThemeManager.onSurface
+                                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                        }
+                                        MouseArea { id: _wtMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root._wpTab = modelData.id }
                                     }
                                 }
                                 Item { Layout.fillWidth: true }
-                                Item {
-                                    property string cur: "toplist"
-                                    id: _whSort
-                                }
+                                SettingBtn { label: "Refresh"; onClicked: WallpaperService.refresh() }
                             }
 
                             Text {
-                                visible: !WallpaperService.canDownload
-                                Layout.fillWidth: true
-                                text: "Browsing works, but downloading a wallpaper needs curl (install it to set/favorite from here)."
-                                wrapMode: Text.WordWrap; color: ThemeManager.error
-                                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs
-                            }
-                            Text {
-                                visible: WallhavenService.error !== ""
-                                Layout.fillWidth: true
-                                text: WallhavenService.error
-                                color: ThemeManager.error; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                            }
-                            Text {
-                                visible: WallhavenService.loading && WallhavenService.results.length === 0
-                                text: "Searching…"; color: ThemeManager.onSurfaceVariant
-                                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm; opacity: 0.7
-                            }
-                            Text {
-                                visible: !WallhavenService.loading && WallhavenService.error === "" && WallhavenService.results.length === 0
-                                text: "Search wallhaven.cc for wallpapers."; color: ThemeManager.onSurfaceVariant
-                                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm; opacity: 0.7
+                                visible: root._wpTab !== "browse" && _wpPane._shownList.length === 0
+                                Layout.topMargin: 8
+                                text: root._wpTab === "favorites" ? "No favorites yet. Click the heart on a wallpaper to add one."
+                                                                  : "No wallpapers in ~/wallpaper."
+                                color: ThemeManager.onSurfaceVariant
+                                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                opacity: 0.7
                             }
 
+                            // ── Local / Favorites thumbnail grid ──────────────────────
                             Flow {
-                                id: _wpBrowseGrid
+                                id: _wpGrid
+                                visible: root._wpTab !== "browse"
                                 Layout.fillWidth: true
+                                Layout.topMargin: 6
                                 spacing: 8
+                                // Tiles stretch so the row is filled instead of ending in a gap.
                                 readonly property int  _cols:  Math.max(2, Math.floor((width + spacing) / (150 + spacing)))
                                 readonly property real _tileW: Math.floor((width - (_cols - 1) * spacing) / _cols)
                                 Repeater {
-                                    model: root._wpTab === "browse" ? WallhavenService.results : []
+                                    model: root._wpTab === "browse" ? [] : _wpPane._shownList
                                     delegate: ClippingRectangle {
-                                        id: _rtile
+                                        id: _tile
                                         required property var modelData
-                                        readonly property bool _busy: WallpaperService.downloadingId === ("" + modelData.id)
-                                        width: _wpBrowseGrid._tileW; height: Math.round(width * 9 / 16)
+                                        required property int index
+                                        readonly property string _path: "" + modelData
+                                        readonly property bool _isCurrent: WallpaperService.current === _path
+                                        readonly property bool _inRot: WallpaperService.isInRotation(_path)
+                                        width: _wpGrid._tileW; height: Math.round(width * 9 / 16)
                                         radius: ThemeManager.chipRadius
                                         color: ThemeManager.surfaceContainerHigh
 
                                         Image {
                                             anchors.fill: parent
-                                            source: _rtile.modelData.thumb
+                                            source: "file://" + _tile._path
                                             fillMode: Image.PreserveAspectCrop
-                                            asynchronous: true; cache: true
+                                            asynchronous: true; cache: false
+                                            sourceSize.width: 336
                                         }
+                                        // Border: current wallpaper (primary) or in-rotation (tertiary)
                                         Rectangle {
-                                            anchors.fill: parent; radius: _rtile.radius
-                                            color: Qt.rgba(0, 0, 0, (_rtMa.containsMouse || _rtile._busy) ? 0.3 : 0)
+                                            anchors.fill: parent; radius: _tile.radius; color: "transparent"
+                                            border.width: (_tile._isCurrent || _tile._inRot) ? 2 : 0
+                                            border.color: _tile._isCurrent ? ThemeManager.primary : ThemeManager.tertiary
                                         }
-                                        // Resolution chip
-                                        Text {
-                                            anchors { bottom: parent.bottom; left: parent.left; margins: 4 }
-                                            text: _rtile.modelData.resolution || ""
-                                            color: "white"; style: Text.Outline; styleColor: "black"
-                                            font.family: ThemeManager.fontFamily; font.pixelSize: 9
+                                        // Hover darken
+                                        Rectangle {
+                                            anchors.fill: parent; radius: _tile.radius
+                                            color: Qt.rgba(0, 0, 0, _tileMa.containsMouse ? 0.18 : 0)
                                         }
-                                        Text {
-                                            anchors.centerIn: parent
-                                            visible: _rtile._busy
-                                            text: "󰇚"; color: "white"
-                                            font.family: ThemeManager.fontFamily; font.pixelSize: 22
+                                        // Rotation badge (bottom-left); membership set via ctrl/shift-click
+                                        Rectangle {
+                                            visible: _tile._inRot
+                                            anchors { left: parent.left; bottom: parent.bottom; margins: 5 }
+                                            width: 20; height: 20; radius: 10
+                                            color: Qt.rgba(ThemeManager.tertiary.r, ThemeManager.tertiary.g, ThemeManager.tertiary.b, 0.9)
+                                            Text { anchors.centerIn: parent; text: "󰑖"; color: ThemeManager.onTertiary
+                                                   font.family: ThemeManager.fontFamily; font.pixelSize: 12 }
                                         }
+                                        // Click: plain = set; ctrl = toggle rotation; shift = range-add to rotation
                                         MouseArea {
-                                            id: _rtMa; anchors.fill: parent
+                                            id: _tileMa
+                                            anchors.fill: parent
                                             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                            enabled: WallpaperService.canDownload && !_rtile._busy
-                                            // Click = download + set
-                                            onClicked: WallpaperService.download(_rtile.modelData.full, _rtile.modelData.id, _rtile.modelData.fileType, false)
+                                            onClicked: (m) => {
+                                                if (m.modifiers & Qt.ControlModifier) {
+                                                    WallpaperService.toggleRotation(_tile._path)
+                                                    _wpPane._rotAnchor = _tile.index
+                                                } else if (m.modifiers & Qt.ShiftModifier) {
+                                                    const list = _wpPane._shownList
+                                                    const a = _wpPane._rotAnchor >= 0 ? _wpPane._rotAnchor : _tile.index
+                                                    const lo = Math.min(a, _tile.index), hi = Math.max(a, _tile.index)
+                                                    const r = (WallpaperService.rotationPaths || []).slice()
+                                                    for (let i = lo; i <= hi; i++) {
+                                                        const pp = "" + list[i]
+                                                        if (r.indexOf(pp) < 0) r.push(pp)
+                                                    }
+                                                    WallpaperService.setRotation(r)
+                                                } else {
+                                                    WallpaperService.commit(_tile._path)
+                                                    _wpPane._rotAnchor = _tile.index
+                                                }
+                                            }
                                         }
-                                        // Favorite (download + favorite) — above the tile MouseArea so it stays clickable
+                                        // Favorite button (on top of the tile MouseArea so it stays clickable)
                                         WpTileBtn {
                                             anchors { top: parent.top; right: parent.right; margins: 5 }
-                                            icon: "󰋕"
-                                            onClicked: WallpaperService.download(_rtile.modelData.full, _rtile.modelData.id, _rtile.modelData.fileType, true)
+                                            icon: WallpaperService.isFavorite(_tile._path) ? "󰋑" : "󰋕"
+                                            active: WallpaperService.isFavorite(_tile._path)
+                                            onClicked: WallpaperService.toggleFavorite(_tile._path)
                                         }
                                     }
                                 }
                             }
-                            SettingBtn {
+
+                            // ── Browse (Wallhaven) ────────────────────────────────────
+                            ColumnLayout {
+                                visible: root._wpTab === "browse"
+                                Layout.fillWidth: true
                                 Layout.topMargin: 6
-                                visible: WallhavenService.hasMore && !WallhavenService.loading
-                                label: "Load more"
-                                onClicked: WallhavenService.loadMore()
-                            }
-                            SettingText {
-                                Layout.topMargin: 10
-                                label: "Wallhaven API key"
-                                sub: "Optional, only needed to browse NSFW results"
-                                path: "wallpaper.wallhavenKey"
-                                placeholder: "from wallhaven.cc/settings/account"
+                                spacing: 6
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 6
+                                    TextField {
+                                        id: _whSearch
+                                        Layout.fillWidth: true; implicitHeight: 30
+                                        placeholderText: "Search wallhaven.cc…"
+                                        color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                        leftPadding: 10; rightPadding: 10
+                                        background: Rectangle { radius: ThemeManager.chipRadius; color: ThemeManager.surfaceContainerHigh
+                                                                border.width: 1; border.color: parent.activeFocus ? ThemeManager.primary : ThemeManager.outlineVariant }
+                                        onAccepted: WallhavenService.search(text, _whSort.cur)
+                                    }
+                                    SettingBtn { label: "Search"; onClicked: WallhavenService.search(_whSearch.text, _whSort.cur) }
+                                }
+                                // Sorting
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 4
+                                    Repeater {
+                                        model: [ { k: "toplist", l: "Top" }, { k: "date_added", l: "Latest" }, { k: "views", l: "Views" }, { k: "random", l: "Random" } ]
+                                        delegate: Rectangle {
+                                            required property var modelData
+                                            readonly property bool sel: _whSort.cur === modelData.k
+                                            implicitWidth: _whsl.implicitWidth + 18; implicitHeight: 26
+                                            radius: ThemeManager.chipRadius
+                                            color: sel ? Qt.rgba(ThemeManager.primary.r, ThemeManager.primary.g, ThemeManager.primary.b, 0.18)
+                                                       : (_whsMa.containsMouse ? Qt.rgba(ThemeManager.onSurface.r, ThemeManager.onSurface.g, ThemeManager.onSurface.b, 0.08) : "transparent")
+                                            Text { id: _whsl; anchors.centerIn: parent; text: modelData.l
+                                                   color: parent.sel ? ThemeManager.primary : ThemeManager.onSurface
+                                                   font.family: ThemeManager.fontFamily; font.pixelSize: 11 }
+                                            MouseArea { id: _whsMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                                        onClicked: { _whSort.cur = modelData.k; WallhavenService.search(_whSearch.text, modelData.k) } }
+                                        }
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                    Item {
+                                        property string cur: "toplist"
+                                        id: _whSort
+                                    }
+                                }
+
+                                Text {
+                                    visible: !WallpaperService.canDownload
+                                    Layout.fillWidth: true
+                                    text: "Browsing works, but downloading a wallpaper needs curl (install it to set/favorite from here)."
+                                    wrapMode: Text.WordWrap; color: ThemeManager.error
+                                    font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs
+                                }
+                                Text {
+                                    visible: WallhavenService.error !== ""
+                                    Layout.fillWidth: true
+                                    text: WallhavenService.error
+                                    color: ThemeManager.error; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                                }
+                                Text {
+                                    visible: WallhavenService.loading && WallhavenService.results.length === 0
+                                    text: "Searching…"; color: ThemeManager.onSurfaceVariant
+                                    font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm; opacity: 0.7
+                                }
+                                Text {
+                                    visible: !WallhavenService.loading && WallhavenService.error === "" && WallhavenService.results.length === 0
+                                    text: "Search wallhaven.cc for wallpapers."; color: ThemeManager.onSurfaceVariant
+                                    font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm; opacity: 0.7
+                                }
+
+                                Flow {
+                                    id: _wpBrowseGrid
+                                    Layout.fillWidth: true
+                                    spacing: 8
+                                    readonly property int  _cols:  Math.max(2, Math.floor((width + spacing) / (150 + spacing)))
+                                    readonly property real _tileW: Math.floor((width - (_cols - 1) * spacing) / _cols)
+                                    Repeater {
+                                        model: root._wpTab === "browse" ? WallhavenService.results : []
+                                        delegate: ClippingRectangle {
+                                            id: _rtile
+                                            required property var modelData
+                                            readonly property bool _busy: WallpaperService.downloadingId === ("" + modelData.id)
+                                            width: _wpBrowseGrid._tileW; height: Math.round(width * 9 / 16)
+                                            radius: ThemeManager.chipRadius
+                                            color: ThemeManager.surfaceContainerHigh
+
+                                            Image {
+                                                anchors.fill: parent
+                                                source: _rtile.modelData.thumb
+                                                fillMode: Image.PreserveAspectCrop
+                                                asynchronous: true; cache: true
+                                            }
+                                            Rectangle {
+                                                anchors.fill: parent; radius: _rtile.radius
+                                                color: Qt.rgba(0, 0, 0, (_rtMa.containsMouse || _rtile._busy) ? 0.3 : 0)
+                                            }
+                                            // Resolution chip
+                                            Text {
+                                                anchors { bottom: parent.bottom; left: parent.left; margins: 4 }
+                                                text: _rtile.modelData.resolution || ""
+                                                color: "white"; style: Text.Outline; styleColor: "black"
+                                                font.family: ThemeManager.fontFamily; font.pixelSize: 9
+                                            }
+                                            Text {
+                                                anchors.centerIn: parent
+                                                visible: _rtile._busy
+                                                text: "󰇚"; color: "white"
+                                                font.family: ThemeManager.fontFamily; font.pixelSize: 22
+                                            }
+                                            MouseArea {
+                                                id: _rtMa; anchors.fill: parent
+                                                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                                enabled: WallpaperService.canDownload && !_rtile._busy
+                                                // Click = download + set
+                                                onClicked: WallpaperService.download(_rtile.modelData.full, _rtile.modelData.id, _rtile.modelData.fileType, false)
+                                            }
+                                            // Favorite (download + favorite), above the tile MouseArea so it stays clickable
+                                            WpTileBtn {
+                                                anchors { top: parent.top; right: parent.right; margins: 5 }
+                                                icon: "󰋕"
+                                                onClicked: WallpaperService.download(_rtile.modelData.full, _rtile.modelData.id, _rtile.modelData.fileType, true)
+                                            }
+                                        }
+                                    }
+                                }
+                                SettingBtn {
+                                    Layout.topMargin: 6
+                                    visible: WallhavenService.hasMore && !WallhavenService.loading
+                                    label: "Load more"
+                                    onClicked: WallhavenService.loadMore()
+                                }
+                                SettingText {
+                                    Layout.topMargin: 10
+                                    label: "Wallhaven API key"
+                                    sub: "Optional, only needed to browse NSFW results"
+                                    path: "wallpaper.wallhavenKey"
+                                    placeholder: "from wallhaven.cc/settings/account"
+                                }
                             }
                         }
 
                         // ── Rotation ──────────────────────────────────────────────
-                        SettingSection { text: "Rotation"; Layout.topMargin: 14 }
-                        SettingRowBase {
-                            label: "Rotate wallpapers"
-                            sub: WallpaperService.rotationPaths.length + " selected. Ctrl-click a wallpaper to add it, Shift-click for a range"
-                            Rectangle {
-                                implicitWidth: 40; implicitHeight: 22; radius: 11
-                                opacity: WallpaperService.rotationPaths.length > 1 ? 1 : 0.4
-                                color: WallpaperService.rotationEnabled ? ThemeManager.primary : ThemeManager.surfaceContainerHigh
-                                Behavior on color { ColorAnimation { duration: 120 } }
+                        SettingGroup {
+                            title: "Rotation"
+                            keywords: "wallpaper rotate interval timer"
+                            SettingRowBase {
+                                label: "Rotate wallpapers"
+                                sub: WallpaperService.rotationPaths.length + " selected. Ctrl-click a wallpaper to add it, Shift-click for a range"
                                 Rectangle {
-                                    width: 16; height: 16; radius: 8; y: 3
-                                    x: WallpaperService.rotationEnabled ? parent.width - width - 3 : 3
-                                    color: WallpaperService.rotationEnabled ? ThemeManager.onPrimary : ThemeManager.onSurfaceVariant
-                                    Behavior on x { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
-                                }
-                                TapHandler {
-                                    enabled: WallpaperService.rotationPaths.length > 1
-                                    onTapped: WallpaperService.setRotationEnabled(!WallpaperService.rotationEnabled)
-                                }
-                            }
-                        }
-                        SettingRowBase {
-                            label: "Interval"
-                            Text {
-                                text: WallpaperService.rotationIntervalMin + " min"
-                                color: ThemeManager.onSurfaceVariant
-                                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm; Layout.rightMargin: 8
-                            }
-                            Rectangle {
-                                id: _wpIvTrack
-                                Layout.preferredWidth: 160; implicitHeight: 6; radius: 3
-                                color: ThemeManager.surfaceContainerHigh
-                                readonly property int _min: 1
-                                readonly property int _max: 120
-                                readonly property real _frac: Math.max(0, Math.min(1, (WallpaperService.rotationIntervalMin - _min) / (_max - _min)))
-                                Rectangle { anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
-                                            width: _wpIvTrack.width * _wpIvTrack._frac; radius: 3; color: ThemeManager.primary }
-                                Rectangle { width: 14; height: 14; radius: 7; color: ThemeManager.primary
-                                            y: -4; x: Math.max(0, Math.min(_wpIvTrack.width - width, _wpIvTrack.width * _wpIvTrack._frac - width / 2)) }
-                                MouseArea {
-                                    anchors.fill: parent; anchors.margins: -6
-                                    onPressed: (e) => _set(e.x); onPositionChanged: (e) => { if (pressed) _set(e.x) }
-                                    function _set(x) {
-                                        const f = Math.max(0, Math.min(1, (x - 6) / _wpIvTrack.width))
-                                        WallpaperService.setRotationInterval(_wpIvTrack._min + f * (_wpIvTrack._max - _wpIvTrack._min))
+                                    implicitWidth: 40; implicitHeight: 22; radius: 11
+                                    opacity: WallpaperService.rotationPaths.length > 1 ? 1 : 0.4
+                                    color: WallpaperService.rotationEnabled ? ThemeManager.primary : ThemeManager.surfaceContainerHigh
+                                    Behavior on color { ColorAnimation { duration: 120 } }
+                                    Rectangle {
+                                        width: 16; height: 16; radius: 8; y: 3
+                                        x: WallpaperService.rotationEnabled ? parent.width - width - 3 : 3
+                                        color: WallpaperService.rotationEnabled ? ThemeManager.onPrimary : ThemeManager.onSurfaceVariant
+                                        Behavior on x { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+                                    }
+                                    TapHandler {
+                                        enabled: WallpaperService.rotationPaths.length > 1
+                                        onTapped: WallpaperService.setRotationEnabled(!WallpaperService.rotationEnabled)
                                     }
                                 }
                             }
-                        }
-                        Text {
-                            Layout.fillWidth: true; Layout.topMargin: 2
-                            text: "Each change re-generates the Material You theme from the new wallpaper."
-                            wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
-                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs; opacity: 0.7
+                            SettingRowBase {
+                                label: "Interval"
+                                Text {
+                                    text: WallpaperService.rotationIntervalMin + " min"
+                                    color: ThemeManager.onSurfaceVariant
+                                    font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm; Layout.rightMargin: 8
+                                }
+                                Rectangle {
+                                    id: _wpIvTrack
+                                    Layout.preferredWidth: 160; implicitHeight: 6; radius: 3
+                                    color: ThemeManager.surfaceContainerHigh
+                                    readonly property int _min: 1
+                                    readonly property int _max: 120
+                                    readonly property real _frac: Math.max(0, Math.min(1, (WallpaperService.rotationIntervalMin - _min) / (_max - _min)))
+                                    Rectangle { anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                                                width: _wpIvTrack.width * _wpIvTrack._frac; radius: 3; color: ThemeManager.primary }
+                                    Rectangle { width: 14; height: 14; radius: 7; color: ThemeManager.primary
+                                                y: -4; x: Math.max(0, Math.min(_wpIvTrack.width - width, _wpIvTrack.width * _wpIvTrack._frac - width / 2)) }
+                                    MouseArea {
+                                        anchors.fill: parent; anchors.margins: -6
+                                        onPressed: (e) => _set(e.x); onPositionChanged: (e) => { if (pressed) _set(e.x) }
+                                        function _set(x) {
+                                            const f = Math.max(0, Math.min(1, (x - 6) / _wpIvTrack.width))
+                                            WallpaperService.setRotationInterval(_wpIvTrack._min + f * (_wpIvTrack._max - _wpIvTrack._min))
+                                        }
+                                    }
+                                }
+                            }
+                            Text {
+                                Layout.fillWidth: true; Layout.topMargin: 2
+                                text: "Each change re-generates the Material You theme from the new wallpaper."
+                                wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
+                                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs; opacity: 0.7
+                            }
                         }
                     }
 
                     // Hyprland ------------------------------------------------------
-                    ColumnLayout {
+                    SettingPage {
+                        cat: "hyprland"
                         id: _hlPane
-                        visible: SettingsUi.category === "hyprland"
-                        Layout.fillWidth: true
-                        Layout.margins: 20
-                        spacing: 8
 
-                        SettingSection { text: "Hyprland" }
                         Text {
+                            visible: SettingsUi.query === ""
                             Layout.fillWidth: true; Layout.bottomMargin: 4
                             text: "Override monitors, appearance and input on top of your own Hyprland config. Only what you change here is written (to hypr.generated.lua); your config is untouched. Requires hypr/quickshell.lua (Lua config)."
                             wrapMode: Text.WordWrap; color: ThemeManager.onSurfaceVariant
@@ -1296,6 +1359,7 @@ PanelWindow {
 
                         // ── Sub-tabs ──────────────────────────────────────────────
                         RowLayout {
+                            visible: SettingsUi.query === ""
                             Layout.fillWidth: true
                             spacing: 6
                             Repeater {
@@ -1322,7 +1386,10 @@ PanelWindow {
                         // ── Display tab ───────────────────────────────────────────
                         ColumnLayout {
                             id: _dispTab
-                            visible: root._hlTab === "display"
+                            readonly property bool isGroup: true
+                            readonly property bool matches: root._matches("monitor display screen resolution scale position rotation")
+                            readonly property bool titleMatch: matches
+                            visible: SettingsUi.query === "" ? root._hlTab === "display" : matches
                             Layout.fillWidth: true
                             Layout.topMargin: 6
                             spacing: 8
@@ -1658,26 +1725,33 @@ PanelWindow {
 
                         // ── Appearance tab ────────────────────────────────────────
                         ColumnLayout {
-                            visible: root._hlTab === "appearance"
+                            visible: SettingsUi.query !== "" || root._hlTab === "appearance"
                             Layout.fillWidth: true
                             Layout.topMargin: 6
                             spacing: 6
 
-                            SettingSection { text: "Gaps & borders" }
-                            SettingSlider { label: "Gaps in";  path: "hypr.general.gaps_in";  def: HyprlandConfigService.live("general:gaps_in", 5);   from: 0; to: 40; unit: "px"; applyFn: () => HyprlandConfigService.applyLive() }
-                            SettingSlider { label: "Gaps out"; path: "hypr.general.gaps_out"; def: HyprlandConfigService.live("general:gaps_out", 20); from: 0; to: 60; unit: "px"; applyFn: () => HyprlandConfigService.applyLive() }
-                            SettingSlider { label: "Border size"; path: "hypr.general.border_size"; def: HyprlandConfigService.live("general:border_size", 2); from: 0; to: 8; unit: "px"; applyFn: () => HyprlandConfigService.applyLive() }
-                            SettingText   { label: "Active border";   path: "hypr.general.col.active_border";   def: ""; placeholder: "rgba(4fcf8cee)"; applyFn: () => HyprlandConfigService.applyLive() }
-                            SettingText   { label: "Inactive border"; path: "hypr.general.col.inactive_border"; def: ""; placeholder: "rgba(595959aa)"; applyFn: () => HyprlandConfigService.applyLive() }
+                            SettingGroup {
+                                title: "Gaps & borders"
+                                keywords: "hyprland gaps border color active inactive"
+                                SettingSlider { label: "Gaps in";  path: "hypr.general.gaps_in";  def: HyprlandConfigService.live("general:gaps_in", 5);   from: 0; to: 40; unit: "px"; applyFn: () => HyprlandConfigService.applyLive() }
+                                SettingSlider { label: "Gaps out"; path: "hypr.general.gaps_out"; def: HyprlandConfigService.live("general:gaps_out", 20); from: 0; to: 60; unit: "px"; applyFn: () => HyprlandConfigService.applyLive() }
+                                SettingSlider { label: "Border size"; path: "hypr.general.border_size"; def: HyprlandConfigService.live("general:border_size", 2); from: 0; to: 8; unit: "px"; applyFn: () => HyprlandConfigService.applyLive() }
+                                SettingText   { label: "Active border";   path: "hypr.general.col.active_border";   def: ""; placeholder: "rgba(4fcf8cee)"; applyFn: () => HyprlandConfigService.applyLive() }
+                                SettingText   { label: "Inactive border"; path: "hypr.general.col.inactive_border"; def: ""; placeholder: "rgba(595959aa)"; applyFn: () => HyprlandConfigService.applyLive() }
+                            }
 
-                            SettingSection { text: "Decoration" }
-                            SettingSlider { label: "Rounding"; path: "hypr.decoration.rounding"; def: HyprlandConfigService.live("decoration:rounding", 10); from: 0; to: 24; unit: "px"; applyFn: () => HyprlandConfigService.applyLive() }
-                            SettingToggle { label: "Blur"; path: "hypr.decoration.blur.enabled"; def: HyprlandConfigService.live("decoration:blur:enabled", true); applyFn: () => HyprlandConfigService.applyLive() }
-                            SettingSlider { label: "Blur size";   path: "hypr.decoration.blur.size";   def: HyprlandConfigService.live("decoration:blur:size", 8);   from: 1; to: 20; unit: ""; applyFn: () => HyprlandConfigService.applyLive() }
-                            SettingSlider { label: "Blur passes"; path: "hypr.decoration.blur.passes"; def: HyprlandConfigService.live("decoration:blur:passes", 3); from: 1; to: 6;  unit: ""; applyFn: () => HyprlandConfigService.applyLive() }
-                            SettingToggle { label: "Shadow"; path: "hypr.decoration.shadow.enabled"; def: HyprlandConfigService.live("decoration:shadow:enabled", true); applyFn: () => HyprlandConfigService.applyLive() }
+                            SettingGroup {
+                                title: "Decoration"
+                                keywords: "hyprland rounding blur shadow"
+                                SettingSlider { label: "Rounding"; path: "hypr.decoration.rounding"; def: HyprlandConfigService.live("decoration:rounding", 10); from: 0; to: 24; unit: "px"; applyFn: () => HyprlandConfigService.applyLive() }
+                                SettingToggle { label: "Blur"; path: "hypr.decoration.blur.enabled"; def: HyprlandConfigService.live("decoration:blur:enabled", true); applyFn: () => HyprlandConfigService.applyLive() }
+                                SettingSlider { label: "Blur size";   path: "hypr.decoration.blur.size";   def: HyprlandConfigService.live("decoration:blur:size", 8);   from: 1; to: 20; unit: ""; applyFn: () => HyprlandConfigService.applyLive() }
+                                SettingSlider { label: "Blur passes"; path: "hypr.decoration.blur.passes"; def: HyprlandConfigService.live("decoration:blur:passes", 3); from: 1; to: 6;  unit: ""; applyFn: () => HyprlandConfigService.applyLive() }
+                                SettingToggle { label: "Shadow"; path: "hypr.decoration.shadow.enabled"; def: HyprlandConfigService.live("decoration:shadow:enabled", true); applyFn: () => HyprlandConfigService.applyLive() }
+                            }
 
                             RowLayout {
+                                visible: SettingsUi.query === ""
                                 Layout.fillWidth: true; Layout.topMargin: 6
                                 Item { Layout.fillWidth: true }
                                 SettingBtn { label: "Reset to my config"; danger: true
@@ -1687,28 +1761,38 @@ PanelWindow {
 
                         // ── Input tab ─────────────────────────────────────────────
                         ColumnLayout {
-                            visible: root._hlTab === "input"
+                            visible: SettingsUi.query !== "" || root._hlTab === "input"
                             Layout.fillWidth: true
                             Layout.topMargin: 6
                             spacing: 6
 
-                            SettingSection { text: "Keyboard" }
-                            SettingText { label: "Layout";  path: "hypr.input.kb_layout";  def: ""; placeholder: HyprlandConfigService.live("input:kb_layout", "us"); applyFn: () => HyprlandConfigService.applyLive() }
-                            SettingText { label: "Variant"; path: "hypr.input.kb_variant"; def: ""; placeholder: HyprlandConfigService.live("input:kb_variant", "none"); applyFn: () => HyprlandConfigService.applyLive() }
+                            SettingGroup {
+                                title: "Keyboard"
+                                keywords: "hyprland layout variant azerty qwerty"
+                                SettingText { label: "Layout";  path: "hypr.input.kb_layout";  def: ""; placeholder: HyprlandConfigService.live("input:kb_layout", "us"); applyFn: () => HyprlandConfigService.applyLive() }
+                                SettingText { label: "Variant"; path: "hypr.input.kb_variant"; def: ""; placeholder: HyprlandConfigService.live("input:kb_variant", "none"); applyFn: () => HyprlandConfigService.applyLive() }
+                            }
 
-                            SettingSection { text: "Mouse & touchpad" }
-                            SettingText   { label: "Sensitivity"; sub: "−1.0 to 1.0"; path: "hypr.input.sensitivity"; def: ""; placeholder: "" + HyprlandConfigService.live("input:sensitivity", 0); applyFn: () => HyprlandConfigService.applyLive() }
-                            SettingSeg    { label: "Follow mouse"; path: "hypr.input.follow_mouse"; def: "" + HyprlandConfigService.live("input:follow_mouse", 1)
-                                            options: [ "0", "1", "2", "3" ]; keys: [ "0", "1", "2", "3" ]; applyFn: () => HyprlandConfigService.applyLive() }
-                            SettingToggle { label: "Touchpad natural scroll"; path: "hypr.input.touchpad.natural_scroll"; def: HyprlandConfigService.live("input:touchpad:natural_scroll", false); applyFn: () => HyprlandConfigService.applyLive() }
+                            SettingGroup {
+                                title: "Mouse & touchpad"
+                                keywords: "hyprland sensitivity follow natural scroll"
+                                SettingText   { label: "Sensitivity"; sub: "−1.0 to 1.0"; path: "hypr.input.sensitivity"; def: ""; placeholder: "" + HyprlandConfigService.live("input:sensitivity", 0); applyFn: () => HyprlandConfigService.applyLive() }
+                                SettingSeg    { label: "Follow mouse"; path: "hypr.input.follow_mouse"; def: "" + HyprlandConfigService.live("input:follow_mouse", 1)
+                                                options: [ "0", "1", "2", "3" ]; keys: [ "0", "1", "2", "3" ]; applyFn: () => HyprlandConfigService.applyLive() }
+                                SettingToggle { label: "Touchpad natural scroll"; path: "hypr.input.touchpad.natural_scroll"; def: HyprlandConfigService.live("input:touchpad:natural_scroll", false); applyFn: () => HyprlandConfigService.applyLive() }
+                            }
 
-                            SettingSection { text: "Behavior" }
-                            SettingSeg    { label: "Layout"; path: "hypr.general.layout"; def: HyprlandConfigService.live("general:layout", "dwindle")
-                                            options: [ "Dwindle", "Master" ]; keys: [ "dwindle", "master" ]; applyFn: () => HyprlandConfigService.applyLive() }
-                            SettingToggle { label: "Allow tearing"; sub: "For fullscreen games"; path: "hypr.general.allow_tearing"; def: HyprlandConfigService.live("general:allow_tearing", false); applyFn: () => HyprlandConfigService.applyLive() }
-                            SettingToggle { label: "Animations"; path: "hypr.animations.enabled"; def: HyprlandConfigService.live("animations:enabled", true); applyFn: () => HyprlandConfigService.applyLive() }
+                            SettingGroup {
+                                title: "Behavior"
+                                keywords: "hyprland layout dwindle master tearing animations"
+                                SettingSeg    { label: "Layout"; path: "hypr.general.layout"; def: HyprlandConfigService.live("general:layout", "dwindle")
+                                                options: [ "Dwindle", "Master" ]; keys: [ "dwindle", "master" ]; applyFn: () => HyprlandConfigService.applyLive() }
+                                SettingToggle { label: "Allow tearing"; sub: "For fullscreen games"; path: "hypr.general.allow_tearing"; def: HyprlandConfigService.live("general:allow_tearing", false); applyFn: () => HyprlandConfigService.applyLive() }
+                                SettingToggle { label: "Animations"; path: "hypr.animations.enabled"; def: HyprlandConfigService.live("animations:enabled", true); applyFn: () => HyprlandConfigService.applyLive() }
+                            }
 
                             RowLayout {
+                                visible: SettingsUi.query === ""
                                 Layout.fillWidth: true; Layout.topMargin: 6
                                 Item { Layout.fillWidth: true }
                                 SettingBtn { label: "Reset to my config"; danger: true
@@ -1718,74 +1802,74 @@ PanelWindow {
                     }
 
                     // Dependencies --------------------------------------------------
-                    ColumnLayout {
-                        visible: SettingsUi.category === "dependencies"
-                        Layout.fillWidth: true
-                        Layout.margins: 20
-                        spacing: 8
-                        SettingSection { text: "Optional dependencies" }
-                        Text {
-                            Layout.fillWidth: true; Layout.bottomMargin: 6
-                            text: "Optional features need these. Nothing is installed automatically."
-                            wrapMode: Text.WordWrap
-                            color: ThemeManager.onSurfaceVariant
-                            font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
-                        }
-                        Repeater {
-                            model: Object.keys(DependencyService.deps)
-                            delegate: RowLayout {
-                                required property var modelData
-                                Layout.fillWidth: true
-                                spacing: 10
-                                readonly property bool ok: DependencyService.available(modelData)
-                                Text { text: ok ? "󰄬" : "󰅖"; color: ok ? "#7bd88f" : ThemeManager.error
-                                       font.family: ThemeManager.fontFamily; font.pixelSize: 14 }
-                                ColumnLayout {
-                                    Layout.fillWidth: true; spacing: 0
-                                    Text { text: modelData + "  ·  " + DependencyService.desc(modelData)
-                                           color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
-                                    Text { visible: !parent.parent.ok; text: "install: " + DependencyService.pkg(modelData)
-                                           color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs }
+                    SettingPage {
+                        cat: "dependencies"
+                        SettingGroup {
+                            title: "Optional dependencies"
+                            keywords: "install packages cava matugen hyprpaper khal curl"
+                            Text {
+                                Layout.fillWidth: true; Layout.bottomMargin: 6
+                                text: "Optional features need these. Nothing is installed automatically."
+                                wrapMode: Text.WordWrap
+                                color: ThemeManager.onSurfaceVariant
+                                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
+                            }
+                            Repeater {
+                                model: Object.keys(DependencyService.deps)
+                                delegate: RowLayout {
+                                    required property var modelData
+                                    Layout.fillWidth: true
+                                    spacing: 10
+                                    readonly property bool ok: DependencyService.available(modelData)
+                                    Text { text: ok ? "󰄬" : "󰅖"; color: ok ? "#7bd88f" : ThemeManager.error
+                                           font.family: ThemeManager.fontFamily; font.pixelSize: 14 }
+                                    ColumnLayout {
+                                        Layout.fillWidth: true; spacing: 0
+                                        Text { text: modelData + "  ·  " + DependencyService.desc(modelData)
+                                               color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
+                                        Text { visible: !parent.parent.ok; text: "install: " + DependencyService.pkg(modelData)
+                                               color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs }
+                                    }
                                 }
                             }
-                        }
-                        Rectangle {
-                            Layout.topMargin: 8
-                            implicitWidth: _recheck.implicitWidth + 24; implicitHeight: 30
-                            radius: ThemeManager.chipRadius; color: _rcH.hovered ? ThemeManager.surfaceContainerHigh : ThemeManager.surfaceContainerLow
-                            border.width: 1; border.color: ThemeManager.outlineVariant
-                            Text { id: _recheck; anchors.centerIn: parent; text: "Re-check"; color: ThemeManager.onSurface
-                                   font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
-                            HoverHandler { id: _rcH }
-                            TapHandler { onTapped: DependencyService.recheck() }
+                            Rectangle {
+                                Layout.topMargin: 8
+                                implicitWidth: _recheck.implicitWidth + 24; implicitHeight: 30
+                                radius: ThemeManager.chipRadius; color: _rcH.hovered ? ThemeManager.surfaceContainerHigh : ThemeManager.surfaceContainerLow
+                                border.width: 1; border.color: ThemeManager.outlineVariant
+                                Text { id: _recheck; anchors.centerIn: parent; text: "Re-check"; color: ThemeManager.onSurface
+                                       font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
+                                HoverHandler { id: _rcH }
+                                TapHandler { onTapped: DependencyService.recheck() }
+                            }
                         }
                     }
 
                     // Advanced ------------------------------------------------------
-                    ColumnLayout {
-                        visible: SettingsUi.category === "advanced"
-                        Layout.fillWidth: true
-                        Layout.margins: 20
-                        spacing: 10
-                        SettingSection { text: "Advanced" }
-                        Row {
-                            spacing: 10
-                            SettingBtn { label: "Open settings.json"; onClicked: _open.running = true }
-                            // Wipes every setting, so it takes a second click within 4 s.
-                            SettingBtn {
-                                id: _resetBtn
-                                property bool armed: false
-                                label: armed ? "Click again to reset" : "Reset to defaults"
-                                danger: true
-                                onClicked: {
-                                    if (!armed) { armed = true; _disarm.restart(); return }
-                                    armed = false
-                                    SettingsService.reset()
+                    SettingPage {
+                        cat: "advanced"
+                        SettingGroup {
+                            title: "Advanced"
+                            keywords: "reset defaults settings.json"
+                            Row {
+                                spacing: 10
+                                SettingBtn { label: "Open settings.json"; onClicked: _open.running = true }
+                                // Wipes every setting, so it takes a second click within 4 s.
+                                SettingBtn {
+                                    id: _resetBtn
+                                    property bool armed: false
+                                    label: armed ? "Click again to reset" : "Reset to defaults"
+                                    danger: true
+                                    onClicked: {
+                                        if (!armed) { armed = true; _disarm.restart(); return }
+                                        armed = false
+                                        SettingsService.reset()
+                                    }
+                                    Timer { id: _disarm; interval: 4000; onTriggered: _resetBtn.armed = false }
                                 }
-                                Timer { id: _disarm; interval: 4000; onTriggered: _resetBtn.armed = false }
                             }
+                            Process { id: _open; command: ["xdg-open", SettingsService._path]; running: false }
                         }
-                        Process { id: _open; command: ["xdg-open", SettingsService._path]; running: false }
                     }
                 }
             }
@@ -1840,13 +1924,65 @@ PanelWindow {
     }
 
     // ── Reusable controls ─────────────────────────────────────────────────────
-    component SettingSection: Text {
-        Layout.topMargin: 10
-        Layout.bottomMargin: 2
-        color: ThemeManager.primary
-        font.family: ThemeManager.fontFamily
-        font.pixelSize: ThemeManager.fontSizeSm
-        font.bold: true
+    // One category. While searching, shown with its name when any group matches.
+    component SettingPage: ColumnLayout {
+        id: page
+        property string cat: ""
+        readonly property bool _searching: root._q !== ""
+        visible: _searching ? root._hasMatch(page) : SettingsUi.category === cat
+        Layout.fillWidth: true
+        Layout.margins: 20
+        spacing: 14
+        Text {
+            visible: page._searching
+            text: root._catLabel(page.cat)
+            color: ThemeManager.onSurface
+            font.family: ThemeManager.fontFamily
+            font.pixelSize: ThemeManager.fontSizeLg
+            font.bold: true
+        }
+    }
+
+    // A titled card of related settings.
+    component SettingGroup: ColumnLayout {
+        id: grp
+        property string title: ""
+        property string keywords: ""   // extra search terms
+        default property alias content: _body.data
+        readonly property bool isGroup: true
+        readonly property bool titleMatch: root._matches(title + " " + keywords)
+        readonly property bool _rowMatch: {
+            if (root._q === "") return false
+            for (const c of _body.children)
+                if (c.searchText !== undefined && root._matches(c.searchText)) return true
+            return false
+        }
+        readonly property bool matches: root._q === "" || titleMatch || _rowMatch
+        visible: matches
+        Layout.fillWidth: true
+        spacing: 6
+        Text {
+            visible: grp.title !== ""
+            Layout.leftMargin: 4
+            text: grp.title
+            color: ThemeManager.primary
+            font.family: ThemeManager.fontFamily
+            font.pixelSize: ThemeManager.fontSizeSm
+            font.bold: true
+        }
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: _body.implicitHeight + 24
+            radius: ThemeManager.chipRadius + 4
+            color: ThemeManager.surfaceContainerLow
+            border.width: 1
+            border.color: Qt.rgba(ThemeManager.outlineVariant.r, ThemeManager.outlineVariant.g, ThemeManager.outlineVariant.b, 0.6)
+            ColumnLayout {
+                id: _body
+                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
+                spacing: 8
+            }
+        }
     }
     component SwitchPill: Rectangle {
         id: sw
@@ -1868,9 +2004,17 @@ PanelWindow {
         property string label: ""
         property string sub: ""
         property string dep: ""
+        readonly property string searchText: label + " " + sub
+        // Enclosing group (row → _body → card → group), for "group title matched".
+        property var _grp: null
+        Component.onCompleted: { let p = parent; for (let i = 0; p && i < 4; i++, p = p.parent) if (p.isGroup) { _grp = p; break } }
+        // Matching rows win; a group matched only by title/keywords shows them all.
+        visible: root._q === "" || root._matches(searchText)
+                 || ((_grp?.titleMatch ?? false) && !(_grp?._rowMatch ?? false))
         Layout.fillWidth: true
         spacing: 10
         readonly property bool depOk: dep === "" || DependencyService.available(dep)
+
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 0

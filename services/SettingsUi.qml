@@ -14,10 +14,11 @@ QtObject {
     property bool   open:       false
     property string screenName: ""
     property string category:   "appearance"   // selected settings category
+    property string query:      ""             // search text; "" = browse by category
 
     function _focusedName() { return Hyprland.focusedMonitor?.name ?? "" }
 
-    function show() { screenName = _focusedName(); open = true }
+    function show() { screenName = _focusedName(); query = ""; open = true }
     function hide() { open = false }
     function toggle() { if (open) hide(); else show() }
 }

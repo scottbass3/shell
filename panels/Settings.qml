@@ -2044,6 +2044,20 @@ PanelWindow {
         spacing: 10
         readonly property bool depOk: dep === "" || DependencyService.available(dep)
 
+        // Rows with a settings `path`/`def` (toggle, slider, segmented, text) show
+        // a dot when their value differs from the default, and a reset button.
+        // Paths starting with "_" are scratch fields, not settings.
+        readonly property string _path: rowBase["path"] ?? ""
+        readonly property bool modified: {
+            if (_path === "" || _path.startsWith("_")) return false
+            const v = SettingsService.get(_path, undefined)
+            return v !== undefined && v !== rowBase["def"]
+        }
+        function resetValue() {
+            SettingsService.unset(_path)
+            if (rowBase["applyFn"]) rowBase["applyFn"]()
+        }
+
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 0
@@ -2055,6 +2069,12 @@ PanelWindow {
                 spacing: 6
                 Text { text: rowBase.label; color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeMd }
                 Rectangle {
+                    visible: rowBase.modified
+                    Layout.alignment: Qt.AlignVCenter
+                    implicitWidth: 6; implicitHeight: 6; radius: 3
+                    color: ThemeManager.primary
+                }
+                Rectangle {
                     visible: rowBase.dep !== "" && !rowBase.depOk
                     implicitWidth: _dt.implicitWidth + 10; implicitHeight: 16; radius: 8
                     color: Qt.rgba(ThemeManager.error.r, ThemeManager.error.g, ThemeManager.error.b, 0.18)
@@ -2065,6 +2085,20 @@ PanelWindow {
             }
             Text { visible: rowBase.sub !== ""; text: rowBase.sub; color: ThemeManager.onSurfaceVariant
                    font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs }
+        }
+        // Reset to default (sits between the label and the control).
+        Rectangle {
+            visible: rowBase.modified
+            implicitWidth: 24; implicitHeight: 24; radius: 12
+            color: _rsH.hovered ? ThemeManager.surfaceContainerHigh : "transparent"
+            Text {
+                anchors.centerIn: parent
+                text: "󰑓"
+                color: _rsH.hovered ? ThemeManager.primary : ThemeManager.onSurfaceVariant
+                font.family: ThemeManager.fontFamily; font.pixelSize: 13
+            }
+            HoverHandler { id: _rsH; cursorShape: Qt.PointingHandCursor }
+            TapHandler { onTapped: rowBase.resetValue() }
         }
     }
     component SettingToggle: SettingRowBase {

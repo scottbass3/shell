@@ -1958,7 +1958,7 @@ PanelWindow {
                             keywords: "install packages cava matugen hyprpaper khal curl"
                             Text {
                                 Layout.fillWidth: true; Layout.bottomMargin: 6
-                                text: "Optional features need these. Nothing is installed automatically."
+                                text: "Optional features need these. Nothing is installed automatically: Install opens the package manager in a terminal, where you confirm."
                                 wrapMode: Text.WordWrap
                                 color: ThemeManager.onSurfaceVariant
                                 font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm
@@ -1978,6 +1978,20 @@ PanelWindow {
                                                color: ThemeManager.onSurface; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
                                         Text { visible: !parent.parent.ok; text: "install: " + DependencyService.pkg(modelData)
                                                color: ThemeManager.onSurfaceVariant; font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs }
+                                    }
+                                    Rectangle {
+                                        visible: !parent.ok && DependencyService.canInstall(modelData)
+                                        implicitWidth: _inst.implicitWidth + 24; implicitHeight: 28
+                                        radius: ThemeManager.chipRadius
+                                        color: _instH.hovered ? ThemeManager.surfaceContainerHigh : ThemeManager.surfaceContainerLow
+                                        border.width: 1; border.color: ThemeManager.outlineVariant
+                                        Text { id: _inst; anchors.centerIn: parent; text: "Install"; color: ThemeManager.primary
+                                               font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeSm }
+                                        HoverHandler { id: _instH; cursorShape: Qt.PointingHandCursor }
+                                        TapHandler { onTapped: DependencyService.install(modelData) }
+                                        ToolTip.visible: _instH.hovered
+                                        ToolTip.delay: 400
+                                        ToolTip.text: "Opens a terminal running: " + DependencyService.installCommand(modelData)
                                     }
                                 }
                             }

@@ -71,7 +71,9 @@ merge into a rounded screen frame.
 ### Optional runtime dependencies
 
 The shell runs without these. Each one enables a feature, and Settings →
-Dependencies shows which are missing.
+Dependencies shows which are missing. On Arch, its Install buttons open the
+package manager (pacman, or paru/yay for AUR packages) in a terminal, where
+you confirm the installation yourself.
 
 | Tool | Enables |
 |---|---|

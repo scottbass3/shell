@@ -660,6 +660,31 @@ Item {
                         : root._tab === "pinned" ? "Pin entries from the history with Ctrl+P or a right click. Pinned entries are never cleared, and categories keep them organized."
                         : ""
                 }
+                Rectangle {
+                    visible: !ClipboardService.connected && !ClipboardService.installed && DependencyService.canInstall("clipd")
+                    Layout.alignment: Qt.AlignHCenter
+                    Layout.topMargin: 6
+                    implicitWidth: _installText.implicitWidth + 32
+                    implicitHeight: 36
+                    radius: 18
+                    color: _installHov.hovered ? Qt.lighter(ThemeManager.primary, 1.1) : ThemeManager.primary
+                    Text {
+                        id: _installText
+                        anchors.centerIn: parent
+                        text: "Install clipd"
+                        color: ThemeManager.onPrimary
+                        font.family: ThemeManager.fontFamily
+                        font.pixelSize: ThemeManager.fontSizeSm
+                        font.weight: Font.Medium
+                    }
+                    HoverHandler { id: _installHov; cursorShape: Qt.PointingHandCursor }
+                    TapHandler {
+                        onTapped: {
+                            DependencyService.install("clipd")
+                            ClipboardService.hide()
+                        }
+                    }
+                }
             }
         }
 

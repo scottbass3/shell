@@ -1,5 +1,6 @@
 pragma Singleton
 import QtQuick
+import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Pam
 import "."
@@ -9,6 +10,15 @@ QtObject {
     id: root
 
     property bool   locked: false
+    onLockedChanged: _persist.locked = locked
+
+    // A config reload recreates the lock surface. Without locking again,
+    // Hyprland shows its "lockscreen app died" screen instead.
+    property PersistentProperties _persist: PersistentProperties {
+        reloadableId: "lockService"
+        property bool locked: false
+        onReloaded: root.locked = locked
+    }
     property bool   busy:   false       // auth in progress
     property string error:  ""
     property string _pw:    ""

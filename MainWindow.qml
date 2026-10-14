@@ -803,6 +803,11 @@ PanelWindow {
         opacity: root._launcherActive && root._launcherH > 20 ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: 100 } }
 
+        // Clicks on the panel's empty parts must not reach the dismiss area.
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+        }
         Loader {
             anchors.fill: parent
             active:          root._launcherActive || parent.opacity > 0
@@ -825,6 +830,11 @@ PanelWindow {
         opacity: root._clipActive && root._clipH > 20 ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: 100 } }
 
+        // Clicks on the panel's empty parts must not reach the dismiss area.
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+        }
         Loader {
             anchors.fill: parent
             active:          root._clipActive || parent.opacity > 0

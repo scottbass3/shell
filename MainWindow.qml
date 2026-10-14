@@ -158,6 +158,19 @@ PanelWindow {
     readonly property real _launcherX: Math.round((root.width - _launcherW) / 2)
     readonly property real _launcherY: root.height - _launcherH   // flush with bottom edge
 
+    // ── Clipboard history — same place and motion as the launcher ──
+    readonly property bool _clipActive:
+        ClipboardService.open && ClipboardService.screenName === root.modelData?.name
+    readonly property real _clipW: Math.min(600, root.width - 80)
+    readonly property real _clipTargetH: Math.min(620, root.height - ThemeManager.barTotalHeight - 60)
+    property real _clipH: _clipActive ? _clipTargetH : 0
+    Behavior on _clipH {
+        NumberAnimation { duration: 300; easing.type: Easing.Bezier
+            easing.bezierCurve: _clipActive ? [0.05,0.7,0.1,1,1,1] : [0.3,0,0.8,0.15,1,1] }
+    }
+    readonly property real _clipX: Math.round((root.width - _clipW) / 2)
+    readonly property real _clipY: root.height - _clipH
+
     // Keyboard for the launcher / tools-rail keyboard mode and the dashboard
     // calendar create form is delivered by the Hyprland focus grab below —
     // grabbing this layer's surface routes keys to it and restores window focus
@@ -165,7 +178,7 @@ PanelWindow {
     // only while a hover-popout text field is actually being edited, so plain
     // hover never grabs. Network/bluetooth text entry is its own PopupWindow.
     readonly property bool _layerWantsKbd: ToolsService.open || ToolsService.wpOpen
-        || root._launcherActive || PopoutService.textActive
+        || root._launcherActive || root._clipActive || PopoutService.textActive
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     HyprlandFocusGrab { windows: [root]; active: root._layerWantsKbd }
 
@@ -247,6 +260,11 @@ PanelWindow {
             x: 0; y: 0
             width:  root._launcherActive ? root.width  : 0
             height: root._launcherActive ? root.height : 0
+        }
+        Region {
+            x: 0; y: 0
+            width:  root._clipActive ? root.width  : 0
+            height: root._clipActive ? root.height : 0
         }
     }
 
@@ -351,6 +369,18 @@ PanelWindow {
             y:                 root._launcherY
             implicitWidth:     root._launcherW
             implicitHeight:    root._launcherH
+            topLeftRadius:     ThemeManager.panelRadius
+            topRightRadius:    ThemeManager.panelRadius
+            bottomLeftRadius:  0; bottomRightRadius: 0
+            deformScale:       0.00003
+        }
+
+        BlobRect {
+            group:             root._clipH > 1 ? blobs : null
+            x:                 root._clipX
+            y:                 root._clipY
+            implicitWidth:     root._clipW
+            implicitHeight:    root._clipH
             topLeftRadius:     ThemeManager.panelRadius
             topRightRadius:    ThemeManager.panelRadius
             bottomLeftRadius:  0; bottomRightRadius: 0
@@ -777,6 +807,28 @@ PanelWindow {
             anchors.fill: parent
             active:          root._launcherActive || parent.opacity > 0
             sourceComponent: Launcher { active: root._launcherActive }
+        }
+    }
+
+    // ── Clipboard history content + click-outside dismiss ─────────────────────
+    MouseArea {
+        anchors.fill: parent
+        visible: root._clipActive
+        onClicked: ClipboardService.hide()
+    }
+    Item {
+        x:       root._clipX
+        y:       root._clipY
+        width:   root._clipW
+        height:  root._clipH
+        clip:    true
+        opacity: root._clipActive && root._clipH > 20 ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 100 } }
+
+        Loader {
+            anchors.fill: parent
+            active:          root._clipActive || parent.opacity > 0
+            sourceComponent: ClipboardPanel { active: root._clipActive }
         }
     }
 

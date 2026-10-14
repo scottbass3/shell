@@ -15,6 +15,7 @@ QtObject {
     // The bindable shell actions. `cmd` is run via hl.dsp.exec_cmd(...).
     readonly property var actions: [
         { key: "launcher",   label: "App launcher",      cmd: Paths.ipc("launcher toggle") },
+        { key: "clipboard",  label: "Clipboard history", cmd: Paths.ipc("clipboard toggle") },
         { key: "settings",   label: "Settings",          cmd: Paths.ipc("settings toggle") },
         { key: "lock",       label: "Lock screen",       cmd: Paths.ipc("lock lock") },
         { key: "tools",      label: "Tools toolbar",     cmd: Paths.ipc("tools toggle") },

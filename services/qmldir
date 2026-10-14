@@ -25,3 +25,4 @@ singleton ContextMenuService 1.0 ContextMenuService.qml
 singleton WallhavenService   1.0 WallhavenService.qml
 singleton HyprlandConfigService 1.0 HyprlandConfigService.qml
 singleton CalculatorService 1.0 CalculatorService.qml
+singleton ClipboardService 1.0 ClipboardService.qml

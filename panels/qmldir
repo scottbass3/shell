@@ -6,5 +6,6 @@ PowerPanel        1.0 PowerPanel.qml
 PowerProfilePanel 1.0 PowerProfilePanel.qml
 TrayMenuPanel     1.0 TrayMenuPanel.qml
 Launcher          1.0 Launcher.qml
+ClipboardPanel    1.0 ClipboardPanel.qml
 Settings          1.0 Settings.qml
 ContextMenu       1.0 ContextMenu.qml

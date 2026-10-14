@@ -24,6 +24,7 @@ optdepends=(
   'libqalculate: units and conversions in the launcher calculator'
   'libsecret: YouTube Music companion token'
   'qt6-websockets: YouTube Music companion (realtime)'
+  'scottbass3-clipd-git: clipboard history'
 )
 provides=("$_name")
 conflicts=("$_name")

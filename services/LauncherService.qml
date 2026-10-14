@@ -23,6 +23,7 @@ QtObject {
     // Keyboard + automatic focus restore are handled by MainWindow's
     // HyprlandFocusGrab while the launcher is open.
     function show() {
+        ClipboardService.hide()
         screenName = _focusedName()
         query = ""
         open = true

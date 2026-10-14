@@ -68,6 +68,14 @@ ShellRoot {
         function close():  void { LauncherService.hide() }
     }
 
+    // Clipboard history (clipd):  qs ipc call clipboard toggle
+    IpcHandler {
+        target: "clipboard"
+        function toggle(): void { ClipboardService.toggle() }
+        function open():   void { ClipboardService.show() }
+        function close():  void { ClipboardService.hide() }
+    }
+
     // Per-monitor workspaces:  qs ipc call ws go <n> <switch|move>
     // Monitor k owns workspaces k*10+1 .. k*10+10, so every screen has its own
     // "1..10". switch uses the focused monitor; move uses the active window's

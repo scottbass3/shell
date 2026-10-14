@@ -23,7 +23,8 @@ QtObject {
         "nmcli":              { bin: "nmcli",               pkg: "networkmanager",       desc: "VPN connections (network panel)" },
         "wpctl":              { bin: "wpctl",               pkg: "wireplumber",          desc: "Bluetooth audio profile switching" },
         "curl":               { bin: "curl",                pkg: "curl",                 desc: "Online wallpaper downloads" },
-        "qalc":               { bin: "qalc",                pkg: "libqalculate",         desc: "Launcher calculator: units, conversions, currencies" }
+        "qalc":               { bin: "qalc",                pkg: "libqalculate",         desc: "Launcher calculator: units, conversions, currencies" },
+        "clipd":              { bin: "clipd",               pkg: "scottbass3-clipd-git (AUR)", desc: "Clipboard history" }
     })
 
     property var present: ({})   // name → bool

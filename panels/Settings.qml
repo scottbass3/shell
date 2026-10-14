@@ -611,7 +611,7 @@ PanelWindow {
                         onVisibleChanged: if (visible) root._refreshBinds()
                         SettingGroup {
                             title: "Keybindings"
-                            keywords: "shortcut keys bind launcher settings lock tools scratchpad"
+                            keywords: "shortcut keys bind launcher clipboard settings lock tools scratchpad"
                             Text {
                                 Layout.fillWidth: true; Layout.bottomMargin: 4
                                 text: "Shortcuts for the shell's actions, unbound by default. Click a shortcut, then press the keys (Escape cancels). Saving reloads Hyprland to apply. Requires hypr/quickshell.lua (Lua config)."

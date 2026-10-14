@@ -86,6 +86,7 @@ Dependencies shows which are missing.
 | `wpctl` (wireplumber) | Bluetooth audio profile switching (A2DP or headset) |
 | `curl` | Downloads from the Wallhaven browser |
 | `qalc` (libqalculate) | Units, conversions and currencies in the launcher calculator |
+| [`clipd`](https://github.com/scottbass3/clipd) (AUR `scottbass3-clipd-git`) | Clipboard history with pins: bind "Clipboard history" in Settings → Keybindings |
 
 Wi-Fi (scan, connect with a password, forget, radio toggle), Bluetooth (scan,
 pair, connect, trust, forget, rename, battery) and battery alerts are handled
@@ -97,8 +98,8 @@ Media uses Quickshell's MPRIS support, so `playerctl` isn't needed. The YouTube
 Music companion talks to the ytmdesktop server over a WebSocket and doesn't
 need Node.
 
-Screenshots, clipboard and idle locking are left to Hyprland: add your own
-binds in `hyprland.lua` (e.g. `grim`, `slurp`, `wl-copy`) and an idle daemon,
+Screenshots and idle locking are left to Hyprland: add your own binds in
+`hyprland.lua` (e.g. `grim`, `slurp`) and an idle daemon,
 e.g. `hypridle` running `scottbass3-shell ipc call lock lock` (or
 `~/.config/quickshell/launch.sh ipc call lock lock` from a git checkout).
 

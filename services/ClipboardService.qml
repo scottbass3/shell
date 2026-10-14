@@ -25,6 +25,9 @@ QtObject {
     property bool paused:     false
     property var  pausedUntil: null   // ms since epoch, null = until resumed
     property bool loaded:     false   // first history reply received
+    property int  entryCount: 0       // whole history, pinned entries included
+    property int  pinCount:   0
+    property string error:    ""      // last refused request, shown for a few seconds
 
     function show() {
         LauncherService.hide()
@@ -41,6 +44,14 @@ QtObject {
     function pin(id, category) { _call({ method: "pin", id: id, category: category ?? null }) }
     function unpin(id)  { _call({ method: "unpin", id: id }) }
     function clear()    { _call({ method: "clear" }) }
+    // position: index in the category, null = last.
+    function movePin(id, category, position) {
+        _call({ method: "move_pin", id: id, category: category ?? null, position: position ?? null })
+    }
+    function createCategory(name)     { _call({ method: "create_category", name: name }) }
+    function renameCategory(id, name) { _call({ method: "rename_category", id: id, name: name }) }
+    function deleteCategory(id)       { _call({ method: "delete_category", id: id }) }
+    function moveCategory(id, position) { _call({ method: "move_category", id: id, position: position }) }
     function setPaused(on) { _call({ method: on ? "pause" : "resume" }) }
 
     // ── Socket ───────────────────────────────────────────────────────────────
@@ -78,7 +89,11 @@ QtObject {
         try { msg = JSON.parse(line) } catch (e) { return }
         if (msg.event !== undefined) { _onEvent(msg.event); return }
         const cb = _pending.shift()
-        if (msg.error !== undefined) { console.warn("clipd:", msg.error); return }
+        if (msg.error !== undefined) {
+            root.error = msg.error
+            _errorTimer.restart()
+            return
+        }
         if (cb) cb(msg.result)
     }
 
@@ -96,7 +111,7 @@ QtObject {
             if (d.history)    root._fetchHistory()
             if (d.pins)       root._fetchPins()
             if (d.categories) root._fetchCategories()
-            if (d.status)     root._fetchStatus()
+            if (d.status || d.history) root._fetchStatus()
         }
     }
 
@@ -109,9 +124,16 @@ QtObject {
     function _fetchPins()       { _call({ method: "pins" }, r => root.pins = r) }
     function _fetchCategories() { _call({ method: "categories" }, r => root.categories = r) }
     function _fetchStatus() {
-        _call({ method: "status" }, r => { root.paused = r.paused; root.pausedUntil = r.until_ms })
+        _call({ method: "status" }, r => {
+            root.paused = r.paused
+            root.pausedUntil = r.until_ms
+            root.entryCount = r.entries
+            root.pinCount = r.pins
+        })
     }
     function _fetchAll() { _fetchHistory(); _fetchPins(); _fetchCategories(); _fetchStatus() }
+
+    property Timer _errorTimer: Timer { interval: 4000; onTriggered: root.error = "" }
 
     onQueryChanged: _search.restart()
     property Timer _search: Timer { interval: 120; onTriggered: root._fetchHistory() }

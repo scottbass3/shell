@@ -2,6 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import Quickshell.Io
 import Quickshell.Services.Notifications
 import "."
 
@@ -355,6 +356,9 @@ QtObject {
     //  - window on a special (tray-parked) workspace → reveal that workspace
     //  - window elsewhere → focus it (switches to its workspace)
     //  - no window found → launch the app from its desktop entry
+    // Windows and monitors are read fresh from hyprctl: Quickshell's
+    // lastIpcObject is only filled by an explicit refresh, so it is empty or
+    // stale here.
     function _bringForward(item) {
         const n = _live[item.key]
 
@@ -366,20 +370,39 @@ QtObject {
                 if (("" + (acts[a].identifier ?? "")) === "default") { acts[a].invoke(); break }
         }
 
+        _forwardItem = { desktopEntry: item.desktopEntry, appName: item.appName }
+        _forwardProbe.running = false
+        _forwardProbe.running = true
+    }
+
+    property var _forwardItem: null
+    property Process _forwardProbe: Process {
+        command: ["sh", "-c", 'printf \'{"clients":%s,"monitors":%s}\' "$(hyprctl -j clients)" "$(hyprctl -j monitors)"']
+        stdout: StdioCollector { onStreamFinished: root._forwardWith(text) }
+    }
+
+    function _forwardWith(text) {
+        const item = _forwardItem
+        _forwardItem = null
+        if (!item) return
+        let clients = [], monitors = []
+        try {
+            const d = JSON.parse(text)
+            clients = d.clients ?? []
+            monitors = d.monitors ?? []
+        } catch (e) {}
+
         const cands = []
         if (item.desktopEntry) cands.push(item.desktopEntry.toLowerCase())
         if (item.appName)      cands.push(item.appName.toLowerCase())
 
-        const tops = Hyprland.toplevels?.values ?? []
         let match = null
-        for (let i = 0; i < tops.length && !match; i++) {
-            const o = tops[i].lastIpcObject
-            if (!o) continue
-            const c = ("" + (o["class"] ?? "")).toLowerCase()
+        for (let i = 0; i < clients.length && !match; i++) {
+            const c = ("" + (clients[i]["class"] ?? "")).toLowerCase()
             if (!c) continue
             for (let j = 0; j < cands.length; j++) {
                 const k = cands[j]
-                if (c === k || c.indexOf(k) >= 0 || k.indexOf(c) >= 0) { match = o; break }
+                if (c === k || c.indexOf(k) >= 0 || k.indexOf(c) >= 0) { match = clients[i]; break }
             }
         }
 
@@ -389,12 +412,7 @@ QtObject {
             if (wsName.indexOf("special:") === 0) {
                 // Reveal the special workspace only if it isn't already shown on
                 // some monitor: toggle would otherwise hide it.
-                let shown = false
-                const mons = Hyprland.monitors?.values ?? []
-                for (let m = 0; m < mons.length; m++) {
-                    const mo = mons[m].lastIpcObject
-                    if (mo && mo.specialWorkspace && ("" + (mo.specialWorkspace.name ?? "")) === wsName) { shown = true; break }
-                }
+                const shown = monitors.some(m => m.specialWorkspace && ("" + (m.specialWorkspace.name ?? "")) === wsName)
                 if (!shown)
                     Hyprland.dispatch('hl.dsp.workspace.toggle_special("' + wsName.substring("special:".length) + '")')
             }

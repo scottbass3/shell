@@ -539,6 +539,26 @@ PanelWindow {
                                     "' > \"$d/" + ThemeManager.activeId + ".json\""]
                             }
                         }
+
+                        SettingGroup {
+                            title: "Login screen"
+                            keywords: "greeter greetd login wallpaper avatar"
+                            SettingToggle {
+                                label: "Show my theme on the login screen"
+                                sub: "Wallpaper, colors and avatar (~/.face) for scottbass3-greeter"
+                                dep: "greeter"
+                                path: "greeter.sync"
+                                def: false
+                            }
+                            Text {
+                                visible: GreeterSyncService.error !== ""
+                                Layout.fillWidth: true
+                                text: "Couldn't update the login screen: " + GreeterSyncService.error
+                                wrapMode: Text.WordWrap
+                                color: ThemeManager.error
+                                font.family: ThemeManager.fontFamily; font.pixelSize: ThemeManager.fontSizeXs
+                            }
+                        }
                     }
 
                     // Bar -----------------------------------------------------------

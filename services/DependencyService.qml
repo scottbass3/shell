@@ -10,8 +10,9 @@ import Quickshell.Io
 QtObject {
     id: root
 
-    // name → { bin | qml, pkg, aur?, post?, desc }
+    // name → { bin | qml | file, pkg, aur?, post?, desc }
     //   bin: probed with `command -v`   qml: probed for the QML module's qmldir
+    //   file: probed for a file the package installs
     //   pkg: Arch package (aur: from the AUR)   post: command run after installing
     readonly property var deps: ({
         "cava":               { bin: "cava",                pkg: "cava",                 desc: "Audio visualizer" },
@@ -28,7 +29,9 @@ QtObject {
         "curl":               { bin: "curl",                pkg: "curl",                 desc: "Online wallpaper downloads" },
         "qalc":               { bin: "qalc",                pkg: "libqalculate",         desc: "Launcher calculator: units, conversions, currencies" },
         "clipd":              { bin: "clipd",               pkg: "scottbass3-clipd-git", aur: true,
-                                post: "systemctl --user enable --now clipd.service",      desc: "Clipboard history" }
+                                post: "systemctl --user enable --now clipd.service",      desc: "Clipboard history" },
+        "greeter":            { file: "/usr/share/scottbass3-greeter/shell.qml", pkg: "scottbass3-greeter-git", aur: true,
+                                desc: "Login screen (point greetd at it, see its README)" }
     })
 
     property var present: ({})   // name → bool
@@ -104,6 +107,8 @@ QtObject {
                            "/usr/lib/qt6/qml /usr/lib/qt/qml /usr/lib64/qt6/qml; do " +
                            "[ -n \"$p\" ] && [ -e \"$p/" + d.qml + "/qmldir\" ] && { echo '" + n + "=1'; exit 0; }; " +
                            "done; echo '" + n + "=0')")
+            } else if (d.file) {
+                parts.push("[ -e '" + d.file + "' ] && echo '" + n + "=1' || echo '" + n + "=0'")
             } else {
                 parts.push("command -v '" + d.bin + "' >/dev/null 2>&1 && echo '" + n + "=1' || echo '" + n + "=0'")
             }

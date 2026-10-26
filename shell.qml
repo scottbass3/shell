@@ -35,6 +35,9 @@ ShellRoot {
 
     Component.onCompleted: _rebuildScreens()
 
+    // Started with the shell so the login screen copy follows theme changes.
+    readonly property bool _greeterSync: GreeterSyncService.enabled
+
     // Moves state out of its old location. hypr/quickshell.lua runs the same
     // script at Hyprland start, but after an update the shell hot-reloads first
     // and would otherwise start from an empty state directory.

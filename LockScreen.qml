@@ -1,13 +1,16 @@
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Widgets
 import "./theme"
 import "./services"
+import "./widgets/lock"
 
 // Custom session lock. State 1: wallpaper + clock/date (left) + weather (bottom-right).
-// State 2 (click / key): background blurs and a password prompt appears.
+// State 2 (click / key): background blurs and a password prompt appears, with
+// keyboard layout, battery and power buttons along the bottom.
 WlSessionLock {
     id: lock
     locked: LockService.locked
@@ -17,8 +20,17 @@ WlSessionLock {
         color: "black"
 
         property bool showPrompt: false
+        property bool showPassword: false
+        property string power: ""      // power action awaiting confirmation
         property var  now: new Date()
         readonly property var _fr: Qt.locale("fr_FR")
+
+        readonly property var _powerActions: [
+            { id: "suspend",  icon: "󰒲", label: "Mettre en veille", confirm: "Mettre l'ordinateur en veille ?" },
+            { id: "reboot",   icon: "󰜉", label: "Redémarrer",       confirm: "Redémarrer l'ordinateur ?" },
+            { id: "poweroff", icon: "󰐥", label: "Éteindre",         confirm: "Éteindre l'ordinateur ?" }
+        ]
+        readonly property var _pending: _powerActions.find(a => a.id === power) ?? null
 
         Timer { interval: 1000; running: true; repeat: true; onTriggered: surf.now = new Date() }
 
@@ -26,11 +38,23 @@ WlSessionLock {
             if (!showPrompt) showPrompt = true
             _pwInput.forceActiveFocus()
         }
+        function hidePrompt() {
+            showPrompt = false
+            showPassword = false
+            power = ""
+            _pwInput.text = ""
+            _idleKeys.forceActiveFocus()
+        }
+        function runPower() {
+            const id = power
+            power = ""
+            Quickshell.execDetached(["systemctl", id])
+        }
 
         // Reset to idle whenever the lock toggles
         Connections {
             target: LockService
-            function onLockedChanged() { if (!LockService.locked) { surf.showPrompt = false; _pwInput.text = "" } }
+            function onLockedChanged() { if (!LockService.locked) { surf.showPrompt = false; surf.power = ""; _pwInput.text = "" } }
             function onBusyChanged()   { if (!LockService.busy && LockService.locked) { _pwInput.text = ""; _pwInput.forceActiveFocus() } }
         }
 
@@ -186,16 +210,17 @@ WlSessionLock {
 
                 TextInput {
                     id: _pwInput
-                    anchors { fill: parent; leftMargin: 18; rightMargin: 18 }
+                    anchors { fill: parent; leftMargin: 18; rightMargin: 46 }
                     verticalAlignment: TextInput.AlignVCenter
                     color: "white"
                     font.family: ThemeManager.fontFamily
                     font.pixelSize: 18
-                    echoMode: TextInput.Password
+                    echoMode: surf.showPassword ? TextInput.Normal : TextInput.Password
                     passwordCharacter: "●"
                     enabled: !LockService.busy
                     clip: true
-                    onAccepted: LockService.submit(text)
+                    onAccepted: { if (surf.power !== "") surf.runPower(); else LockService.submit(text) }
+                    Keys.onEscapePressed: { if (surf.power !== "") surf.power = ""; else surf.hidePrompt() }
 
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
@@ -215,15 +240,149 @@ WlSessionLock {
                     font.family: ThemeManager.fontFamily
                     font.pixelSize: 16
                 }
+
+                // Show / hide the password
+                Text {
+                    visible: !LockService.busy
+                    anchors { right: parent.right; rightMargin: 16; verticalCenter: parent.verticalCenter }
+                    text: surf.showPassword ? "󰈉" : "󰈈"
+                    color: Qt.rgba(1, 1, 1, 0.7)
+                    font.family: ThemeManager.fontFamily
+                    font.pixelSize: 18
+                    MouseArea {
+                        anchors.fill: parent
+                        anchors.margins: -8
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: { surf.showPassword = !surf.showPassword; _pwInput.forceActiveFocus() }
+                    }
+                }
             }
 
-            Text {
+            // Messages get a fixed space, so the prompt doesn't move when they show.
+            Item {
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: LockService.error
-                visible: LockService.error !== ""
-                color: ThemeManager.error
+                width: 340; height: 48
+                Column {
+                    anchors { top: parent.top; horizontalCenter: parent.horizontalCenter }
+                    spacing: 6
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        visible: KeyboardService.capsLock
+                        text: "󰪛  Verr. Maj activé"
+                        color: ThemeManager.primary
+                        font.family: ThemeManager.fontFamily
+                        font.pixelSize: 14
+                    }
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: LockService.error
+                        visible: LockService.error !== ""
+                        color: ThemeManager.error
+                        font.family: ThemeManager.fontFamily
+                        font.pixelSize: 14
+                    }
+                }
+            }
+        }
+
+        // ── Prompt: bottom bar (keyboard layout, battery, power) ──────────────
+        Item {
+            anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 32 }
+            height: 44
+            opacity: surf.showPrompt ? 1 : 0
+            visible: opacity > 0
+            Behavior on opacity { NumberAnimation { duration: 280 } }
+
+            Text {
+                anchors.centerIn: parent
+                text: "Échap pour revenir"
+                color: "white"
+                opacity: 0.6
                 font.family: ThemeManager.fontFamily
-                font.pixelSize: 14
+                font.pixelSize: 12
+            }
+
+            Row {
+                anchors.right: parent.right
+                spacing: 8
+                LockPill {
+                    visible: KeyboardService.available && KeyboardService.layout !== ""
+                    icon: "󰌌"
+                    label: KeyboardService.layout
+                    tip: KeyboardService.multiple ? "Disposition suivante" : "Disposition du clavier"
+                    onClicked: { if (KeyboardService.multiple) KeyboardService.next(); _pwInput.forceActiveFocus() }
+                }
+                LockPill {
+                    visible: BatteryService.present && BatteryService.pct >= 0
+                    icon: BatteryService.charging ? "󰂄"
+                        : ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"][Math.min(9, Math.floor(Math.max(0, BatteryService.pct) / 10))]
+                    label: BatteryService.pct + "%"
+                    tip: BatteryService.charging ? "En charge" : "Batterie"
+                }
+                Repeater {
+                    model: surf._powerActions
+                    delegate: LockPill {
+                        required property var modelData
+                        icon: modelData.icon
+                        tip: modelData.label
+                        onClicked: { surf.power = modelData.id; _pwInput.forceActiveFocus() }
+                    }
+                }
+            }
+        }
+
+        // ── Power confirmation ────────────────────────────────────────────────
+        Rectangle {
+            anchors.fill: parent
+            visible: surf.power !== ""
+            color: Qt.rgba(0, 0, 0, 0.45)
+            z: 10
+            MouseArea { anchors.fill: parent; onClicked: { surf.power = ""; _pwInput.forceActiveFocus() } }
+
+            Rectangle {
+                anchors.centerIn: parent
+                width: 380
+                height: _confirmCol.implicitHeight + 44
+                radius: ThemeManager.panelRadius + 4
+                color: ThemeManager.surfaceContainerHigh
+                border.width: 1
+                border.color: ThemeManager.outlineVariant
+                MouseArea { anchors.fill: parent }
+
+                Column {
+                    id: _confirmCol
+                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 22 }
+                    spacing: 18
+                    Row {
+                        spacing: 12
+                        Text {
+                            text: surf._pending?.icon ?? ""
+                            color: ThemeManager.primary
+                            font.family: ThemeManager.fontFamily
+                            font.pixelSize: 24
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: surf._pending?.confirm ?? ""
+                            color: ThemeManager.onSurface
+                            font.family: ThemeManager.fontFamily
+                            font.pixelSize: ThemeManager.fontSizeLg
+                            font.weight: Font.DemiBold
+                        }
+                    }
+                    Text {
+                        text: "Entrée confirme, Échap annule."
+                        color: ThemeManager.onSurfaceVariant
+                        font.family: ThemeManager.fontFamily
+                        font.pixelSize: ThemeManager.fontSizeXs
+                    }
+                    Row {
+                        anchors.right: parent.right
+                        spacing: 8
+                        LockDialogButton { label: "Annuler"; onClicked: { surf.power = ""; _pwInput.forceActiveFocus() } }
+                        LockDialogButton { label: surf._pending?.label ?? ""; strong: true; onClicked: surf.runPower() }
+                    }
+                }
             }
         }
 
@@ -238,6 +397,7 @@ WlSessionLock {
         // character also seeds the password field so typing starts immediately
         // (non-printable keys — modifiers, Enter, Escape… — only reveal).
         Item {
+            id: _idleKeys
             anchors.fill: parent
             focus: !surf.showPrompt
             Keys.onPressed: (e) => {

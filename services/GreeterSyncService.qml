@@ -38,6 +38,14 @@ QtObject {
         }
     }
 
+    // A failed copy (e.g. the greeter package not updated yet) is retried.
+    property Timer _retry: Timer {
+        interval: 30000
+        repeat: true
+        running: root.enabled && root.installed && root.error !== ""
+        onTriggered: root._debounce.restart()
+    }
+
     function _sync() {
         const colors = {}
         for (const r of _roles) colors[r] = ThemeManager.roleHex(r)

@@ -20,7 +20,6 @@ Item {
     property var now: new Date()
     Timer { interval: 1000; running: true; repeat: true; onTriggered: root.now = new Date() }
 
-    readonly property var _fr: Qt.locale("fr_FR")
 
     // Active dashboard tab ("home" bento | "media" player)
     property string tab: "home"
@@ -295,19 +294,19 @@ Item {
                         Layout.fillWidth: true
                         spacing: 0
                         Text {
-                            text: root.now.toLocaleTimeString(root._fr, "HH:mm")
+                            text: root.now.toLocaleTimeString(ThemeManager.timeLocale, "HH:mm")
                             color: ThemeManager.onSurface
                             font.family: ThemeManager.fontFamily
                             font.pixelSize: 26; font.weight: Font.Bold
                         }
                         Text {
-                            text: root.now.toLocaleDateString(root._fr, "ddd")
+                            text: root.now.toLocaleDateString(ThemeManager.timeLocale, "ddd")
                             color: ThemeManager.primary
                             font.family: ThemeManager.fontFamily
                             font.pixelSize: ThemeManager.fontSizeSm; font.weight: Font.Medium
                         }
                         Text {
-                            text: root.now.toLocaleDateString(root._fr, "d MMM")
+                            text: root.now.toLocaleDateString(ThemeManager.timeLocale, "d MMM")
                             color: ThemeManager.onSurfaceVariant
                             font.family: ThemeManager.fontFamily
                             font.pixelSize: ThemeManager.fontSizeSm
@@ -964,7 +963,7 @@ Item {
                     Text {
                         Layout.fillWidth: true
                         text: root.calSelectedDate !== ""
-                            ? new Date(root.calSelectedDate).toLocaleDateString(root._fr, "dddd, d MMMM")
+                            ? new Date(root.calSelectedDate).toLocaleDateString(ThemeManager.timeLocale, "dddd, d MMMM")
                             : ""
                         color: ThemeManager.onSurface
                         font.family: ThemeManager.fontFamily
@@ -1970,7 +1969,7 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             Text {
-                text: cal.view.toLocaleDateString(root._fr, "MMMM yyyy")
+                text: cal.view.toLocaleDateString(ThemeManager.timeLocale, "MMMM yyyy")
                 color: ThemeManager.onSurface
                 font.family: ThemeManager.fontFamily
                 font.pixelSize: ThemeManager.fontSizeMd; font.weight: Font.Medium

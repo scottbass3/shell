@@ -58,12 +58,12 @@ QtObject {
                 root.error  = ""
                 root.locked = false
             } else if (result === PamResult.MaxTries) {
-                root.error = "Trop de tentatives"
+                root.error = "Too many attempts"
             } else {
-                root.error = "Mot de passe incorrect"
+                root.error = "Wrong password"
             }
         }
-        onError: (msg) => { root.busy = false; root._pw = ""; root.error = "Erreur d'authentification" }
+        onError: (msg) => { root.busy = false; root._pw = ""; root.error = "Authentication error" }
     }
 
     // Fallback: first wallpaper entry from hyprpaper.conf (used only until the

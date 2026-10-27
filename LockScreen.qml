@@ -23,12 +23,11 @@ WlSessionLock {
         property bool showPassword: false
         property string power: ""      // power action awaiting confirmation
         property var  now: new Date()
-        readonly property var _fr: Qt.locale("fr_FR")
 
         readonly property var _powerActions: [
-            { id: "suspend",  icon: "󰒲", label: "Mettre en veille", confirm: "Mettre l'ordinateur en veille ?" },
-            { id: "reboot",   icon: "󰜉", label: "Redémarrer",       confirm: "Redémarrer l'ordinateur ?" },
-            { id: "poweroff", icon: "󰐥", label: "Éteindre",         confirm: "Éteindre l'ordinateur ?" }
+            { id: "suspend",  icon: "󰒲", label: "Suspend",   confirm: "Suspend the computer?" },
+            { id: "reboot",   icon: "󰜉", label: "Restart",   confirm: "Restart the computer?" },
+            { id: "poweroff", icon: "󰐥", label: "Power off", confirm: "Power off the computer?" }
         ]
         readonly property var _pending: _powerActions.find(a => a.id === power) ?? null
 
@@ -96,14 +95,14 @@ WlSessionLock {
             Behavior on opacity { NumberAnimation { duration: 260 } }
 
             Text {
-                text: surf.now.toLocaleTimeString(surf._fr, "HH:mm")
+                text: surf.now.toLocaleTimeString(ThemeManager.timeLocale, "HH:mm")
                 color: "white"
                 font.family: ThemeManager.fontFamily
                 font.pixelSize: 120
                 font.weight: Font.Bold
             }
             Text {
-                text: surf.now.toLocaleDateString(surf._fr, "dddd, d MMMM yyyy")
+                text: surf.now.toLocaleDateString(ThemeManager.timeLocale, "dddd, d MMMM yyyy")
                 color: "white"
                 opacity: 0.85
                 font.family: ThemeManager.fontFamily
@@ -193,7 +192,7 @@ WlSessionLock {
 
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: surf.now.toLocaleTimeString(surf._fr, "HH:mm")
+                text: surf.now.toLocaleTimeString(ThemeManager.timeLocale, "HH:mm")
                 color: "white"
                 font.family: ThemeManager.fontFamily
                 font.pixelSize: 34; font.weight: Font.Medium
@@ -225,7 +224,7 @@ WlSessionLock {
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         visible: _pwInput.text === "" && !LockService.busy
-                        text: "Mot de passe"
+                        text: "Password"
                         color: Qt.rgba(1, 1, 1, 0.5)
                         font: _pwInput.font
                     }
@@ -235,7 +234,7 @@ WlSessionLock {
                 Text {
                     anchors.centerIn: parent
                     visible: LockService.busy
-                    text: "Vérification…"
+                    text: "Checking…"
                     color: Qt.rgba(1, 1, 1, 0.7)
                     font.family: ThemeManager.fontFamily
                     font.pixelSize: 16
@@ -268,7 +267,7 @@ WlSessionLock {
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
                         visible: KeyboardService.capsLock
-                        text: "󰪛  Verr. Maj activé"
+                        text: "󰪛  Caps Lock is on"
                         color: ThemeManager.primary
                         font.family: ThemeManager.fontFamily
                         font.pixelSize: 14
@@ -295,7 +294,7 @@ WlSessionLock {
 
             Text {
                 anchors.centerIn: parent
-                text: "Échap pour revenir"
+                text: "Esc to go back"
                 color: "white"
                 opacity: 0.6
                 font.family: ThemeManager.fontFamily
@@ -309,7 +308,7 @@ WlSessionLock {
                     visible: KeyboardService.available && KeyboardService.layout !== ""
                     icon: "󰌌"
                     label: KeyboardService.layout
-                    tip: KeyboardService.multiple ? "Disposition suivante" : "Disposition du clavier"
+                    tip: KeyboardService.multiple ? "Next keyboard layout" : "Keyboard layout"
                     onClicked: { if (KeyboardService.multiple) KeyboardService.next(); _pwInput.forceActiveFocus() }
                 }
                 LockPill {
@@ -317,7 +316,7 @@ WlSessionLock {
                     icon: BatteryService.charging ? "󰂄"
                         : ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"][Math.min(9, Math.floor(Math.max(0, BatteryService.pct) / 10))]
                     label: BatteryService.pct + "%"
-                    tip: BatteryService.charging ? "En charge" : "Batterie"
+                    tip: BatteryService.charging ? "Charging" : "Battery"
                 }
                 Repeater {
                     model: surf._powerActions
@@ -371,7 +370,7 @@ WlSessionLock {
                         }
                     }
                     Text {
-                        text: "Entrée confirme, Échap annule."
+                        text: "Enter confirms, Esc cancels."
                         color: ThemeManager.onSurfaceVariant
                         font.family: ThemeManager.fontFamily
                         font.pixelSize: ThemeManager.fontSizeXs
@@ -379,7 +378,7 @@ WlSessionLock {
                     Row {
                         anchors.right: parent.right
                         spacing: 8
-                        LockDialogButton { label: "Annuler"; onClicked: { surf.power = ""; _pwInput.forceActiveFocus() } }
+                        LockDialogButton { label: "Cancel"; onClicked: { surf.power = ""; _pwInput.forceActiveFocus() } }
                         LockDialogButton { label: surf._pending?.label ?? ""; strong: true; onClicked: surf.runPower() }
                     }
                 }

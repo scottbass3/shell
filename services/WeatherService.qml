@@ -1,8 +1,9 @@
 pragma Singleton
 import QtQuick
 import "."
+import "../theme"
 
-// Weather via wttr.in (no API key). French (lang=fr).
+// Weather via wttr.in (no API key).
 // Refreshes on load + every (configurable) interval via QML XMLHttpRequest (no
 // curl). Degrades gracefully (ok=false) on any network/parse failure.
 QtObject {
@@ -30,7 +31,7 @@ QtObject {
     property var forecast: []
 
     function refresh() {
-        const url = "https://wttr.in/" + encodeURIComponent(root.place) + "?format=j1&lang=fr"
+        const url = "https://wttr.in/" + encodeURIComponent(root.place) + "?format=j1"
         const xhr = new XMLHttpRequest()
         xhr.onreadystatechange = function () {
             if (xhr.readyState !== XMLHttpRequest.DONE) return
@@ -60,19 +61,18 @@ QtObject {
             root.tempC    = parseInt(cc.temp_C)
             root.feelsC   = parseInt(cc.FeelsLikeC)
             // Prefer the localized (French) description when present
-            root.desc     = cc.lang_fr?.[0]?.value ?? cc.weatherDesc?.[0]?.value ?? ""
+            root.desc     = cc.weatherDesc?.[0]?.value ?? ""
             root.humidity = parseInt(cc.humidity)
             root.icon     = root._glyph(cc.weatherCode)
             const area    = j.nearest_area?.[0]
             root.location = area?.areaName?.[0]?.value ?? ""
 
-            const fr = Qt.locale("fr_FR")
             const fc = []
             for (let i = 0; i < Math.min(3, (j.weather || []).length); i++) {
                 const w = j.weather[i]
                 const noon = (w.hourly || []).find(h => h.time === "1200") || w.hourly?.[0]
                 fc.push({
-                    day:  new Date(w.date).toLocaleDateString(fr, "ddd"),
+                    day:  new Date(w.date).toLocaleDateString(ThemeManager.timeLocale, "ddd"),
                     min:  parseInt(w.mintempC),
                     max:  parseInt(w.maxtempC),
                     icon: root._glyph(noon?.weatherCode ?? 0)

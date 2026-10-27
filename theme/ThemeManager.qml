@@ -1,5 +1,6 @@
 pragma Singleton
 import QtQuick
+import Quickshell
 import Quickshell.Io
 import "../services"
 
@@ -31,6 +32,10 @@ QtObject {
         const c = root[key]
         return (c && c.toString) ? c.toString() : ""
     }
+
+    // Dates and times follow the session's locale, LC_TIME first.
+    readonly property var timeLocale: Qt.locale(Quickshell.env("LC_ALL") || Quickshell.env("LC_TIME")
+                                                || Quickshell.env("LANG") || "C")
 
     // ── Active theme state ───────────────────────────────────────────────────
     property string activeId: "catppuccin-mocha"

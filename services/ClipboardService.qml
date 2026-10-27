@@ -149,6 +149,7 @@ QtObject {
                 if (!connected) { root._drop(s); return }
                 root._pending = []
                 root._sockConnected = true
+                root._retryDelay = 3000
                 root._call({ method: "subscribe" })
                 root._fetchAll()
             }
@@ -156,12 +157,17 @@ QtObject {
     }
 
     // The daemon may start after the shell, or restart. A daemon found outside
-    // PATH (e.g. a Nix user service) is used all the same.
+    // PATH (e.g. a Nix user service) is used all the same. Attempts space out up
+    // to a minute while it stays away; opening the panel tries at once.
+    property int _retryDelay: 3000
     property Timer _retry: Timer {
-        interval: 3000
+        interval: root._retryDelay
         repeat: true
         running: !root.connected
-        onTriggered: root._connect()
+        onTriggered: {
+            root._connect()
+            root._retryDelay = Math.min(root._retryDelay * 2, 60000)
+        }
     }
 
     Component.onCompleted: _connect()

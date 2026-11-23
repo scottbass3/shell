@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Widgets
 import "../../theme"
 import "../../services"
+import "../shared"
 
 // A titled fixed-column grid of app tiles.
 //   activated(app)        — click / keyboard-enter
@@ -157,7 +158,7 @@ ColumnLayout {
                         anchors.margins: 8
                         spacing: 6
 
-                        IconImage {
+                        AppIcon {
                             Layout.alignment: Qt.AlignHCenter
                             implicitSize: 40
                             source: AppService.iconFor(tile.modelData)

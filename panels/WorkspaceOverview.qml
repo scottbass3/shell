@@ -6,6 +6,7 @@ import Quickshell.Wayland
 import Quickshell.Hyprland
 import "../theme"
 import "../services"
+import "../widgets/shared"
 
 // Workspace overview: one cell per workspace on the bar's monitor, each a
 // scaled mini-screen showing live thumbnails of its windows (app icon
@@ -177,10 +178,10 @@ Item {
                                 clip: true
 
                                 // App icon fallback (behind the thumbnail)
-                                IconImage {
+                                AppIcon {
                                     anchors.centerIn: parent
                                     implicitSize: Math.max(12, Math.min(parent.width, parent.height) * 0.5)
-                                    source: Quickshell.iconPath((winItem.ipc.class ?? "").toLowerCase(), "application-x-executable")
+                                    source: AppService.iconForClass(winItem.ipc.class ?? "")
                                     visible: !_thumb.hasContent
                                 }
 
@@ -391,10 +392,10 @@ Item {
                     border.width: 1
                     border.color: Qt.rgba(ThemeManager.onSurface.r, ThemeManager.onSurface.g, ThemeManager.onSurface.b, 0.08)
                     clip: true
-                    IconImage {
+                    AppIcon {
                         anchors.centerIn: parent
                         implicitSize: Math.max(12, Math.min(parent.width, parent.height) * 0.5)
-                        source: Quickshell.iconPath((scWin.wipc.class ?? "").toLowerCase(), "application-x-executable")
+                        source: AppService.iconForClass(scWin.wipc.class ?? "")
                         visible: !_scThumb.hasContent
                     }
                     ScreencopyView {
@@ -482,10 +483,10 @@ Item {
             opacity: 0.97
             clip: true
 
-            IconImage {
+            AppIcon {
                 anchors.centerIn: parent
                 implicitSize: 32
-                source: Quickshell.iconPath(root._dragClass.toLowerCase(), "application-x-executable")
+                source: AppService.iconForClass(root._dragClass)
                 visible: !_proxyThumb.hasContent
             }
             ScreencopyView {

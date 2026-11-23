@@ -2,6 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import Quickshell.Io
 
 // Desktop application catalog + launcher.
 // Wraps Quickshell.DesktopEntries: exposes a displayable, name-sorted list and a
@@ -23,9 +24,55 @@ QtObject {
         return out
     }
 
-    // Resolve a themed icon path for an entry (fallback: generic exec icon).
+    // Icon source for an entry, "" when it has none (callers show a glyph). Qt
+    // reads the icon themes once and never sees icons installed later (a newly
+    // installed app), so names it can't find are looked up on disk.
     function iconFor(entry) {
-        return Quickshell.iconPath(entry?.icon ?? "", "application-x-executable")
+        const name = entry?.icon ?? ""
+        if (name.startsWith("/")) return "file://" + name
+        if (name !== "" && Quickshell.hasThemeIcon(name)) return Quickshell.iconPath(name)
+        const file = _iconFiles[name]
+        return file ? "file://" + file : ""
+    }
+
+    // Icon for a window, from its app's entry, else an icon named after its class.
+    function iconForClass(cls) {
+        const entry = byClass(cls)
+        if (entry) return iconFor(entry)
+        const name = (cls ?? "").toLowerCase()
+        return name !== "" && Quickshell.hasThemeIcon(name) ? Quickshell.iconPath(name) : ""
+    }
+
+    property var _iconFiles: ({})   // icon name → file, for names Qt can't find
+    readonly property var _unresolved: apps.map(e => e.icon ?? "")
+        .filter((n, i, all) => n !== "" && !n.startsWith("/") && all.indexOf(n) === i
+                                && !Quickshell.hasThemeIcon(n) && _iconFiles[n] === undefined)
+    on_UnresolvedChanged: if (_unresolved.length > 0 && !_iconLookup.running) {
+        _iconLookup.command = ["sh", "-c", _iconLookupScript, "sh"].concat(_unresolved)
+        _iconLookup.running = true
+    }
+    // Per name: scalable icons first, then the largest bitmap, then pixmaps.
+    readonly property string _iconLookupScript: `
+        dirs="\${XDG_DATA_HOME:-$HOME/.local/share}/icons $HOME/.icons"
+        for d in $(printf %s "\${XDG_DATA_DIRS:-/usr/local/share:/usr/share}" | tr : ' '); do dirs="$dirs $d/icons"; done
+        for name in "$@"; do
+            file=$(for d in $dirs; do [ -d "$d" ] && find -L "$d" -path "*/apps/$name.svg" 2>/dev/null; done | head -n1)
+            [ -n "$file" ] || file=$(for d in $dirs; do [ -d "$d" ] && find -L "$d" -path "*/apps/$name.png" 2>/dev/null; done \
+                | awk -F/ '{ size = $(NF-2); sub(/x.*/, "", size); print size + 0, $0 }' | sort -rn | head -n1 | cut -d' ' -f2-)
+            [ -n "$file" ] || for ext in svg png xpm; do [ -f "/usr/share/pixmaps/$name.$ext" ] && { file="/usr/share/pixmaps/$name.$ext"; break; }; done
+            printf '%s\t%s\n' "$name" "$file"
+        done`
+    property Process _iconLookup: Process {
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const found = Object.assign({}, root._iconFiles)
+                for (const line of text.split("\n")) {
+                    const tab = line.indexOf("\t")
+                    if (tab > 0) found[line.slice(0, tab)] = line.slice(tab + 1)
+                }
+                root._iconFiles = found
+            }
+        }
     }
 
     // Stable key for usage tracking / pin storage.

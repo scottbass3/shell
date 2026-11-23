@@ -6,6 +6,7 @@ import Quickshell.Widgets
 import "../theme"
 import "../services"
 import "../widgets/launcher"
+import "../widgets/shared"
 
 // Windows 11-style start menu — CONTENT ONLY (no window).
 // MainWindow draws the blob surface (merged into the bottom screen border),
@@ -498,7 +499,7 @@ Item {
         border.color: ThemeManager.primary
         opacity: 0.92
         z: 300
-        IconImage {
+        AppIcon {
             anchors.centerIn: parent
             implicitSize: 40
             source: root._dragApp ? AppService.iconFor(root._dragApp) : ""
